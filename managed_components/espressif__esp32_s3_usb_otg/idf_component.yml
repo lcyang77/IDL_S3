@@ -1,0 +1,19 @@
+dependencies:
+  button:
+    public: true
+    version: '>=2.5,<4.0'
+  espressif/esp_lvgl_port:
+    public: true
+    version: ^2
+  idf: '>=4.4'
+description: Board Support Package (BSP) for ESP32-S3-USB-OTG
+repository: git://github.com/espressif/esp-bsp.git
+repository_info:
+  commit_sha: be509a7095c66619993068c247afd7f47cdfce19
+  path: bsp/esp32_s3_usb_otg
+tags:
+- bsp
+targets:
+- esp32s3
+url: https://github.com/espressif/esp-bsp/tree/master/bsp/esp32_s3_usb_otg
+version: 1.6.1
