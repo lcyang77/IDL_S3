@@ -5,6 +5,13 @@
     "idf.portWin": "COM3",
     "idf.flashType": "UART",
     "files.associations": {
-        "draft": "cpp"
+        "draft": "cpp",
+        "gs_device.h": "c",
+        "string.h": "c",
+        "gs_ota.h": "c",
+        "cc_log.h": "c",
+        "cc_hal_ble.h": "c",
+        "gs_bind.h": "c",
+        "esp_camera.h": "c"
     }
 }
