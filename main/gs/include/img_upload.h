@@ -7,14 +7,11 @@ extern "C" {
 
 #include "esp_err.h"
 
-// 初始化图片上传模块
+// 初始化图片上传模块，设置服务器URL等
 esp_err_t img_upload_init(const char *server_url);
 
-// 上传图片数据
+// 上传图片数据（JPEG 格式）
 esp_err_t img_upload_send(const uint8_t *data, size_t len);
-
-// 图片上传任务
-void img_upload_task(void *pvParameters);
 
 #ifdef __cplusplus
 }

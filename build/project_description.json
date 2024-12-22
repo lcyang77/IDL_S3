@@ -1,7 +1,7 @@
 {
     "version":            "1.1",
     "project_name":       "usb_camera_mic_spk",
-    "project_version":    "d23cf87-dirty",
+    "project_version":    "100491b-dirty",
     "project_path":       "D:/Work/ESP/ESP32_S2_Project/S3_Demo/esp-iot-solution-master/examples/usb/host/usb_camera_mic_spk",
     "idf_path":           "C:/Users/linus/esp/v5.3.2/esp-idf",
     "build_dir":          "D:/Work/ESP/ESP32_S2_Project/S3_Demo/esp-iot-solution-master/examples/usb/host/usb_camera_mic_spk/build",

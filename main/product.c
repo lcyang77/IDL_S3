@@ -25,8 +25,8 @@ static char *TAG = "product";
 #define EX_UART_NUM UART_NUM_1
 #define RX_BUF_SIZE 32*5
 
-#define TXD_PIN (GPIO_NUM_20)
-#define RXD_PIN (GPIO_NUM_19)
+#define TXD_PIN (GPIO_NUM_15)
+#define RXD_PIN (GPIO_NUM_16)
 
 #define SUB_TOPIC_SERVER_PUB                     "/service/publish"
 #define PUB_TOPIC_DEVICE_PUB                     "/event/notify"
