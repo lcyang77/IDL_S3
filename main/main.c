@@ -13,56 +13,47 @@
 #include "freertos/task.h"
 #include "esp_err.h"
 #include "esp_log.h"
+#include "esp_wifi.h"
+#include "esp_event.h"
+#include "nvs_flash.h"
+#include "esp_http_server.h"
 #include "usb_stream.h"
 #ifdef CONFIG_ESP32_S3_USB_OTG
 #include "bsp/esp-bsp.h"
 #endif
+#include "esp_camera.h"  // Added to define camera_fb_t and PIXFORMAT_JPEG
 
-static const char *TAG = "uvc_mic_spk_demo";
+static const char *TAG = "uvc_demo";
+
 /****************** configure the example working mode *******************************/
-#define ENABLE_UVC_CAMERA_FUNCTION        1        /* enable uvc function */
-#define ENABLE_UAC_MIC_SPK_FUNCTION       1        /* enable uac mic+spk function */
-#if (ENABLE_UVC_CAMERA_FUNCTION)
-#define ENABLE_UVC_FRAME_RESOLUTION_ANY   1        /* Using any resolution found from the camera */
-#define ENABLE_UVC_WIFI_XFER              0        /* transfer uvc frame to wifi http */
-#endif
-#if (ENABLE_UAC_MIC_SPK_FUNCTION)
-#define ENABLE_UAC_MIC_SPK_LOOPBACK       0        /* transfer mic data to speaker */
-static uint32_t s_mic_samples_frequence = 0;
-static uint32_t s_mic_ch_num = 0;
-static uint32_t s_mic_bit_resolution = 0;
-static uint32_t s_spk_samples_frequence = 0;
-static uint32_t s_spk_ch_num = 0;
-static uint32_t s_spk_bit_resolution = 0;
-#endif
+#define ENABLE_UVC_FRAME_RESOLUTION_ANY   0        /* Using any resolution found from the camera */
+#define ENABLE_UVC_WIFI_XFER              1        /* transfer uvc frame to wifi http */
+
+#define EXAMPLE_ESP_WIFI_SSID      "ASUS Wi-Fi7"
+#define EXAMPLE_ESP_WIFI_PASS      "y2756096"
 
 #define BIT0_FRAME_START     (0x01 << 0)
 #define BIT1_NEW_FRAME_START (0x01 << 1)
 #define BIT2_NEW_FRAME_END   (0x01 << 2)
-#define BIT3_SPK_START       (0x01 << 3)
-#define BIT4_SPK_RESET       (0x01 << 4)
 
 static EventGroupHandle_t s_evt_handle;
+static EventGroupHandle_t s_wifi_event_group;
+#define WIFI_CONNECTED_BIT BIT0
+#define WIFI_FAIL_BIT      BIT1
 
-#if (ENABLE_UVC_CAMERA_FUNCTION)
 #if (ENABLE_UVC_FRAME_RESOLUTION_ANY)
 #define DEMO_UVC_FRAME_WIDTH        FRAME_RESOLUTION_ANY
 #define DEMO_UVC_FRAME_HEIGHT       FRAME_RESOLUTION_ANY
 #else
-#define DEMO_UVC_FRAME_WIDTH        480
-#define DEMO_UVC_FRAME_HEIGHT       320
+#define DEMO_UVC_FRAME_WIDTH        1280
+#define DEMO_UVC_FRAME_HEIGHT       720
 #endif
 
 #ifdef CONFIG_IDF_TARGET_ESP32S2
 #define DEMO_UVC_XFER_BUFFER_SIZE (45 * 1024)
 #else
-#define DEMO_UVC_XFER_BUFFER_SIZE (100 * 1024)
+#define DEMO_UVC_XFER_BUFFER_SIZE (1024 * 1024)
 #endif
-
-#if (ENABLE_UVC_WIFI_XFER)
-#include "app_wifi.h"
-#include "app_httpd.h"
-#include "esp_camera.h"
 
 static camera_fb_t s_fb = {0};
 
@@ -93,7 +84,6 @@ static void camera_frame_cb(uvc_frame_t *frame, void *ptr)
         s_fb.len = frame->data_bytes;
         s_fb.width = frame->width;
         s_fb.height = frame->height;
-        s_fb.buf = frame->data;
         s_fb.format = PIXFORMAT_JPEG;
         s_fb.timestamp.tv_sec = frame->sequence;
         xEventGroupSetBits(s_evt_handle, BIT1_NEW_FRAME_START);
@@ -107,27 +97,6 @@ static void camera_frame_cb(uvc_frame_t *frame, void *ptr)
         break;
     }
 }
-#else
-static void camera_frame_cb(uvc_frame_t *frame, void *ptr)
-{
-    ESP_LOGI(TAG, "uvc callback! frame_format = %d, seq = %"PRIu32", width = %"PRIu32", height = %"PRIu32", length = %u, ptr = %d",
-             frame->frame_format, frame->sequence, frame->width, frame->height, frame->data_bytes, (int) ptr);
-}
-#endif //ENABLE_UVC_WIFI_XFER
-#endif //ENABLE_UVC_CAMERA_FUNCTION
-
-#if (ENABLE_UAC_MIC_SPK_FUNCTION)
-static void mic_frame_cb(mic_frame_t *frame, void *ptr)
-{
-    // We should using higher baudrate here, to reduce the blocking time here
-    ESP_LOGD(TAG, "mic callback! bit_resolution = %u, samples_frequence = %"PRIu32", data_bytes = %"PRIu32,
-             frame->bit_resolution, frame->samples_frequence, frame->data_bytes);
-    // We should never block in mic callback!
-#if (ENABLE_UAC_MIC_SPK_LOOPBACK)
-    uac_spk_streaming_write(frame->data, frame->data_bytes, 0);
-#endif //ENABLE_UAC_MIC_SPK_LOOPBACK
-}
-#endif //ENABLE_UAC_MIC_SPK_FUNCTION
 
 static void stream_state_changed_cb(usb_stream_state_t event, void *arg)
 {
@@ -135,7 +104,6 @@ static void stream_state_changed_cb(usb_stream_state_t event, void *arg)
     case STREAM_CONNECTED: {
         size_t frame_size = 0;
         size_t frame_index = 0;
-#if (ENABLE_UVC_CAMERA_FUNCTION)
         uvc_frame_size_list_get(NULL, &frame_size, &frame_index);
         if (frame_size) {
             ESP_LOGI(TAG, "UVC: get frame list size = %u, current = %u", frame_size, frame_index);
@@ -148,62 +116,6 @@ static void stream_state_changed_cb(usb_stream_state_t event, void *arg)
         } else {
             ESP_LOGW(TAG, "UVC: get frame list size = %u", frame_size);
         }
-#endif
-#if (ENABLE_UAC_MIC_SPK_FUNCTION)
-        uac_frame_size_list_get(STREAM_UAC_MIC, NULL, &frame_size, &frame_index);
-        if (frame_size) {
-            ESP_LOGI(TAG, "UAC MIC: get frame list size = %u, current = %u", frame_size, frame_index);
-            uac_frame_size_t *mic_frame_list = (uac_frame_size_t *)malloc(frame_size * sizeof(uac_frame_size_t));
-            uac_frame_size_list_get(STREAM_UAC_MIC, mic_frame_list, NULL, NULL);
-            for (size_t i = 0; i < frame_size; i++) {
-                ESP_LOGI(TAG, "\t [%u] ch_num = %u, bit_resolution = %u, samples_frequence = %"PRIu32 ", samples_frequence_min = %"PRIu32 ", samples_frequence_max = %"PRIu32,
-                         i, mic_frame_list[i].ch_num, mic_frame_list[i].bit_resolution, mic_frame_list[i].samples_frequence,
-                         mic_frame_list[i].samples_frequence_min, mic_frame_list[i].samples_frequence_max);
-            }
-            s_mic_samples_frequence = mic_frame_list[frame_index].samples_frequence;
-            s_mic_ch_num = mic_frame_list[frame_index].ch_num;
-            s_mic_bit_resolution = mic_frame_list[frame_index].bit_resolution;
-            if (s_mic_ch_num != 1) {
-                ESP_LOGW(TAG, "UAC MIC: only support 1 channel in this example");
-            }
-            ESP_LOGI(TAG, "UAC MIC: use frame[%u] ch_num = %"PRIu32", bit_resolution = %"PRIu32", samples_frequence = %"PRIu32,
-                     frame_index, s_mic_ch_num, s_mic_bit_resolution, s_mic_samples_frequence);
-            free(mic_frame_list);
-        } else {
-            ESP_LOGW(TAG, "UAC MIC: get frame list size = %u", frame_size);
-        }
-
-        uac_frame_size_list_get(STREAM_UAC_SPK, NULL, &frame_size, &frame_index);
-        if (frame_size) {
-            ESP_LOGI(TAG, "UAC SPK: get frame list size = %u, current = %u", frame_size, frame_index);
-            uac_frame_size_t *spk_frame_list = (uac_frame_size_t *)malloc(frame_size * sizeof(uac_frame_size_t));
-            uac_frame_size_list_get(STREAM_UAC_SPK, spk_frame_list, NULL, NULL);
-            for (size_t i = 0; i < frame_size; i++) {
-                ESP_LOGI(TAG, "\t [%u] ch_num = %u, bit_resolution = %u, samples_frequence = %"PRIu32 ", samples_frequence_min = %"PRIu32 ", samples_frequence_max = %"PRIu32,
-                         i, spk_frame_list[i].ch_num, spk_frame_list[i].bit_resolution, spk_frame_list[i].samples_frequence,
-                         spk_frame_list[i].samples_frequence_min, spk_frame_list[i].samples_frequence_max);
-            }
-            if (s_spk_samples_frequence != spk_frame_list[frame_index].samples_frequence
-                    || s_spk_ch_num != spk_frame_list[frame_index].ch_num
-                    || s_spk_bit_resolution != spk_frame_list[frame_index].bit_resolution) {
-                if (s_spk_samples_frequence) {
-                    xEventGroupSetBits(s_evt_handle, BIT4_SPK_RESET);
-                }
-                s_spk_samples_frequence = spk_frame_list[frame_index].samples_frequence;
-                s_spk_ch_num = spk_frame_list[frame_index].ch_num;
-                s_spk_bit_resolution = spk_frame_list[frame_index].bit_resolution;
-            }
-            xEventGroupSetBits(s_evt_handle, BIT3_SPK_START);
-            if (s_spk_ch_num != 1) {
-                ESP_LOGW(TAG, "UAC SPK: only support 1 channel in this example");
-            }
-            ESP_LOGI(TAG, "UAC SPK: use frame[%u] ch_num = %"PRIu32", bit_resolution = %"PRIu32", samples_frequence = %"PRIu32,
-                     frame_index, s_spk_ch_num, s_spk_bit_resolution, s_spk_samples_frequence);
-            free(spk_frame_list);
-        } else {
-            ESP_LOGW(TAG, "UAC SPK: get frame list size = %u", frame_size);
-        }
-#endif
         ESP_LOGI(TAG, "Device connected");
         break;
     }
@@ -216,6 +128,134 @@ static void stream_state_changed_cb(usb_stream_state_t event, void *arg)
     }
 }
 
+// WiFi Event Handler
+static void wifi_event_handler(void* arg, esp_event_base_t event_base,
+                             int32_t event_id, void* event_data)
+{
+    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
+        esp_wifi_connect();
+    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
+        esp_wifi_connect();
+    } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
+        ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
+        ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
+        xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+    }
+}
+
+// HTTP Server Handlers
+static esp_err_t stream_handler(httpd_req_t *req){
+    esp_err_t res = ESP_OK;
+    char part_buf[64];  // Changed to char array instead of pointer
+
+    res = httpd_resp_set_type(req, "multipart/x-mixed-replace;boundary=123456789000000000000987654321");
+    if(res != ESP_OK){
+        return res;
+    }
+
+    while(true) {
+        camera_fb_t * fb = esp_camera_fb_get();
+        if (!fb) {
+            ESP_LOGE(TAG, "Camera capture failed");
+            res = ESP_FAIL;
+            break;
+        }
+        
+        size_t hlen = snprintf(part_buf, sizeof(part_buf),
+            "Content-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n",
+            fb->len);
+
+        res = httpd_resp_send_chunk(req, part_buf, hlen);
+        if(res == ESP_OK){
+            res = httpd_resp_send_chunk(req, (const char *)fb->buf, fb->len);
+        }
+        if(res == ESP_OK){
+            res = httpd_resp_send_chunk(req, "\r\n--123456789000000000000987654321\r\n", 37);
+        }
+        esp_camera_fb_return(fb);
+        if(res != ESP_OK){
+            break;
+        }
+    }
+    return res;
+}
+
+static esp_err_t capture_handler(httpd_req_t *req){
+    camera_fb_t * fb = NULL;
+    esp_err_t res = ESP_OK;
+    
+    fb = esp_camera_fb_get();
+    if (!fb) {
+        ESP_LOGE(TAG, "Camera capture failed");
+        httpd_resp_send_500(req);
+        return ESP_FAIL;
+    }
+
+    res = httpd_resp_set_type(req, "image/jpeg");
+    if(res == ESP_OK){
+        res = httpd_resp_set_hdr(req, "Content-Disposition", "inline; filename=capture.jpg");
+    }
+
+    if(res == ESP_OK){
+        res = httpd_resp_send(req, (const char *)fb->buf, fb->len);
+    }
+
+    esp_camera_fb_return(fb);
+    return res;
+}
+
+void app_wifi_init(void)
+{
+    s_wifi_event_group = xEventGroupCreate();
+
+    ESP_ERROR_CHECK(esp_netif_init());
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
+    esp_netif_t *sta_netif = esp_netif_create_default_wifi_sta();
+    assert(sta_netif);
+
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+
+    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL));
+
+    wifi_config_t wifi_config = {
+        .sta = {
+            .ssid = EXAMPLE_ESP_WIFI_SSID,
+            .password = EXAMPLE_ESP_WIFI_PASS,
+        },
+    };
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
+    ESP_ERROR_CHECK(esp_wifi_start());
+}
+
+void start_webserver(void)
+{
+    httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+    httpd_handle_t stream_httpd = NULL;
+
+    httpd_uri_t stream = {
+        .uri       = "/stream",
+        .method    = HTTP_GET,
+        .handler   = stream_handler,
+        .user_ctx  = NULL
+    };
+
+    httpd_uri_t capture = {
+        .uri       = "/capture",
+        .method    = HTTP_GET,
+        .handler   = capture_handler,
+        .user_ctx  = NULL
+    };
+
+    ESP_LOGI(TAG, "Starting web server on port: '%d'", config.server_port);
+    if (httpd_start(&stream_httpd, &config) == ESP_OK) {
+        httpd_register_uri_handler(stream_httpd, &stream);
+        httpd_register_uri_handler(stream_httpd, &capture);
+    }
+}
+
 void app_main(void)
 {
 #ifdef CONFIG_ESP32_S3_USB_OTG
@@ -224,18 +264,34 @@ void app_main(void)
 #endif
     esp_log_level_set("*", ESP_LOG_INFO);
     esp_log_level_set("httpd_txrx", ESP_LOG_INFO);
-    esp_err_t ret = ESP_FAIL;
+
+    // Initialize NVS
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ret = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(ret);
+
     s_evt_handle = xEventGroupCreate();
     if (s_evt_handle == NULL) {
         ESP_LOGE(TAG, "line-%u event group create failed", __LINE__);
         assert(0);
     }
 
-#if (ENABLE_UVC_CAMERA_FUNCTION)
-#if (ENABLE_UVC_WIFI_XFER)
-    app_wifi_main();
-    app_httpd_main();
-#endif //ENABLE_UVC_WIFI_XFER
+    // Initialize WiFi
+    app_wifi_init();
+
+    // Wait for WiFi connection
+    xEventGroupWaitBits(s_wifi_event_group,
+            WIFI_CONNECTED_BIT,
+            pdFALSE,
+            pdFALSE,
+            portMAX_DELAY);
+
+    // Start HTTP Server
+    start_webserver();
+
     /* malloc double buffer for usb payload, xfer_buffer_size >= frame_buffer_size*/
     uint8_t *xfer_buffer_a = (uint8_t *)malloc(DEMO_UVC_XFER_BUFFER_SIZE);
     assert(xfer_buffer_a != NULL);
@@ -259,89 +315,22 @@ void app_main(void)
         .frame_cb = &camera_frame_cb,
         .frame_cb_arg = NULL,
     };
+
     /* config to enable uvc function */
     ret = uvc_streaming_config(&uvc_config);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "uvc streaming config failed");
     }
-#endif
 
-#if (ENABLE_UAC_MIC_SPK_FUNCTION)
-    /* match any frequency of audio device we can found
-     * call uac_frame_size_list_get to get the frame list of current audio device
-     */
-    uac_config_t uac_config = {
-        .mic_bit_resolution = UAC_BITS_ANY,
-        .mic_samples_frequence = UAC_FREQUENCY_ANY,
-        .spk_bit_resolution = UAC_BITS_ANY,
-        .spk_samples_frequence = UAC_FREQUENCY_ANY,
-        .spk_buf_size = 16000,
-        .mic_cb = &mic_frame_cb,
-        .mic_cb_arg = NULL,
-        /* Set flags to suspend speaker, user need call usb_streaming_control
-        later to resume the speaker*/
-        .flags = FLAG_UAC_SPK_SUSPEND_AFTER_START,
-    };
-    ret = uac_streaming_config(&uac_config);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "uac streaming config failed");
-    }
-#endif
-    /* register the state callback to get connect/disconnect event
-    * in the callback, we can get the frame list of current device
-    */
+    /* register the state callback to get connect/disconnect event */
     ESP_ERROR_CHECK(usb_streaming_state_register(&stream_state_changed_cb, NULL));
-    /* start usb streaming, UVC and UAC MIC will start streaming because SUSPEND_AFTER_START flags not set */
+    
+    /* start usb streaming */
     ESP_ERROR_CHECK(usb_streaming_start());
     ESP_ERROR_CHECK(usb_streaming_connect_wait(portMAX_DELAY));
-    // wait for speaker device ready
-    xEventGroupWaitBits(s_evt_handle, BIT3_SPK_START, false, false, portMAX_DELAY);
-
-    while (1) {
-        xEventGroupWaitBits(s_evt_handle, BIT3_SPK_START, true, false, portMAX_DELAY);
-        /* Manually resume the speaker because SUSPEND_AFTER_START flags is set */
-        ESP_ERROR_CHECK(usb_streaming_control(STREAM_UAC_SPK, CTRL_RESUME, NULL));
-        usb_streaming_control(STREAM_UAC_SPK, CTRL_UAC_VOLUME, (void *)80);
-        usb_streaming_control(STREAM_UAC_MIC, CTRL_UAC_VOLUME, (void *)80);
-        ESP_LOGI(TAG, "speaker resume");
-#if (ENABLE_UAC_MIC_SPK_FUNCTION && !ENABLE_UAC_MIC_SPK_LOOPBACK)
-        ESP_LOGI(TAG, "start to play default sound");
-        extern const uint8_t wave_array_32000_16_1[];
-        extern const uint32_t s_buffer_size;
-        int freq_offsite_step = 32000 / s_spk_samples_frequence;
-        int downsampling_bits = 16 - s_spk_bit_resolution;
-        const int buffer_ms = 400;
-        const int buffer_size = buffer_ms * (s_spk_bit_resolution / 8) * (s_spk_samples_frequence / 1000);
-        // if 8bit spk, declare uint8_t *d_buffer
-        uint16_t *s_buffer = (uint16_t *)wave_array_32000_16_1;
-        uint16_t *d_buffer = calloc(1, buffer_size);
-        size_t offset_size = buffer_size / (s_spk_bit_resolution / 8);
-        while (1) {
-            if ((uint32_t)(s_buffer + offset_size) >= (uint32_t)(wave_array_32000_16_1 + s_buffer_size)) {
-                s_buffer = (uint16_t *)wave_array_32000_16_1;
-                // mute the speaker
-                vTaskDelay(pdMS_TO_TICKS(1000));
-                // un-mute the speaker
-            } else {
-                // fill to usb buffer
-                for (size_t i = 0; i < offset_size; i++) {
-                    d_buffer[i] = *(s_buffer + i * freq_offsite_step) >> downsampling_bits;
-                }
-                // write to usb speaker
-                uac_spk_streaming_write(d_buffer, buffer_size, pdMS_TO_TICKS(1000));
-                s_buffer += offset_size * freq_offsite_step;
-            }
-            if (xEventGroupGetBits(s_evt_handle) & (BIT4_SPK_RESET | BIT3_SPK_START)) {
-                // disconnect happens, we may need to reset the frequency of the speaker
-                xEventGroupClearBits(s_evt_handle, BIT4_SPK_RESET);
-                break;
-            }
-        }
-        free(d_buffer);
-#endif
-    }
 
     while (1) {
         vTaskDelay(100);
     }
 }
+

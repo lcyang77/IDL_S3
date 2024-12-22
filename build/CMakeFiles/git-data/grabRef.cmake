@@ -18,7 +18,7 @@ set(HEAD_HASH)
 file(READ "D:/Work/ESP/ESP32_S2_Project/S3_Demo/esp-iot-solution-master/examples/usb/host/usb_camera_mic_spk/build/CMakeFiles/git-data/HEAD" HEAD_CONTENTS LIMIT 1024)
 
 string(STRIP "${HEAD_CONTENTS}" HEAD_CONTENTS)
-set(GIT_DIR "C:/Users/linus/esp/v5.3.2/esp-idf/.git")
+set(GIT_DIR "D:/Work/ESP/ESP32_S2_Project/S3_Demo/esp-iot-solution-master/examples/usb/host/usb_camera_mic_spk/.git")
 # handle git-worktree
 if(EXISTS "${GIT_DIR}/commondir")
 	file(READ "${GIT_DIR}/commondir" GIT_DIR_NEW LIMIT 1024)

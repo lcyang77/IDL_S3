@@ -1,2 +1,2 @@
-idf_component_register(SRCS main.c wave_1ch_16bits.c
+idf_component_register(SRCS main.c 
                     INCLUDE_DIRS ".")
