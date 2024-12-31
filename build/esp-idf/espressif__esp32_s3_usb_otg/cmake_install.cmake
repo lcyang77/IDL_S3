@@ -1,8 +1,8 @@
-# Install script for directory: D:/Work/ESP/ESP32_S2_Project/S3_Demo/esp-iot-solution-master/examples/usb/host/usb_camera_mic_spk/managed_components/espressif__esp32_s3_usb_otg
+# Install script for directory: D:/Work/ESP/Main_S3_IDL/IDL_S3/managed_components/espressif__esp32_s3_usb_otg
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
-  set(CMAKE_INSTALL_PREFIX "C:/Program Files (x86)/usb_camera_mic_spk")
+  set(CMAKE_INSTALL_PREFIX "C:/Program Files (x86)/IDL_S3")
 endif()
 string(REGEX REPLACE "/$" "" CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
 

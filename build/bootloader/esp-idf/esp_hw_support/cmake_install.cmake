@@ -39,11 +39,11 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("D:/Work/ESP/ESP32_S2_Project/S3_Demo/esp-iot-solution-master/examples/usb/host/usb_camera_mic_spk/build/bootloader/esp-idf/esp_hw_support/port/esp32s3/cmake_install.cmake")
+  include("D:/Work/ESP/Main_S3_IDL/IDL_S3/build/bootloader/esp-idf/esp_hw_support/port/esp32s3/cmake_install.cmake")
 endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("D:/Work/ESP/ESP32_S2_Project/S3_Demo/esp-iot-solution-master/examples/usb/host/usb_camera_mic_spk/build/bootloader/esp-idf/esp_hw_support/lowpower/cmake_install.cmake")
+  include("D:/Work/ESP/Main_S3_IDL/IDL_S3/build/bootloader/esp-idf/esp_hw_support/lowpower/cmake_install.cmake")
 endif()
 

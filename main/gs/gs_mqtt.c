@@ -72,6 +72,17 @@ static cc_err_t __mqtt_save_config(void){
     return CC_OK;
 }
 
+static gs_mqtt_birth_cb_t g_birth_callback = NULL;
+
+// 注册回调函数的API
+cc_err_t gs_mqtt_register_birth_callback(gs_mqtt_birth_cb_t cb) {
+    if(cb == NULL) {
+        return CC_FAIL;
+    }
+    g_birth_callback = cb;
+    return CC_OK;
+}
+
 cc_err_t gs_mqtt_reset_config(void){
     cc_err_t err = CC_FAIL;
 
@@ -91,14 +102,29 @@ static void __mqtt_birth(void){
     char msg[128];
     char sw_version[GS_DEVICE_VERSION_BUF_MAX_LEN] = "";
     char hw_version[GS_DEVICE_VERSION_BUF_MAX_LEN] = "";
+    cc_err_t ret;
 
     gs_device_get_version(sw_version, hw_version);
 
-    sprintf(msg, "{\"ver\":\"%s\",\"act\":\"0002\",\"seq_no\":\"%s\"}", sw_version, gs_mqtt_generate_seq());
-    gs_mqtt_publish(PUB_TOPIC_PROPERTY_POST, (uint8_t *)msg, strlen(msg), GS_MQTT_QOS0, 0);
+    // 发送软件版本消息
+    sprintf(msg, "{\"ver\":\"%s\",\"act\":\"0002\",\"seq_no\":\"%s\"}", 
+            sw_version, gs_mqtt_generate_seq());
+    ret = gs_mqtt_publish(PUB_TOPIC_PROPERTY_POST, (uint8_t *)msg, strlen(msg), 
+                         GS_MQTT_QOS0, 0);
+    
+    if(g_birth_callback) {
+        g_birth_callback(0, (ret == CC_OK) ? 1 : 0);  // 0表示版本消息
+    }
 
-    sprintf(msg, "{\"ver\":\"%s\",\"act\":\"0003\",\"type\":\"02\",\"data\":\"%d\",\"seq_no\":\"%s\"}", sw_version, cc_hal_wifi_get_connect_rssi(), gs_mqtt_generate_seq());
-    gs_mqtt_publish(PUB_TOPIC_PROPERTY_POST, (uint8_t *)msg, strlen(msg), GS_MQTT_QOS0, 0);    
+    // 发送WiFi信号强度消息
+    sprintf(msg, "{\"ver\":\"%s\",\"act\":\"0003\",\"type\":\"02\",\"data\":\"%d\",\"seq_no\":\"%s\"}", 
+            sw_version, cc_hal_wifi_get_connect_rssi(), gs_mqtt_generate_seq());
+    ret = gs_mqtt_publish(PUB_TOPIC_PROPERTY_POST, (uint8_t *)msg, strlen(msg), 
+                         GS_MQTT_QOS0, 0);
+    
+    if(g_birth_callback) {
+        g_birth_callback(1, (ret == CC_OK) ? 1 : 0);  // 1表示信号强度消息
+    }
 }
 
 static void __event_handler(void* handler_args, cc_event_base_t base_event, int32_t id, void* event_data){

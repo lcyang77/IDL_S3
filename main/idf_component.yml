@@ -2,7 +2,7 @@ dependencies:
   idf: ">=4.4.1"
   usb_stream:
     version: ">=1.0.5"
-    override_path: "../../../../../components/usb/usb_stream"
+    path: "D:/Work/ESP/Main_S3_IDL/IDL_S3/components/usb/usb_stream"    # 使用显式的相对路径
   espressif/esp32_s3_usb_otg:
     version: "^1.5.1"
     rules:

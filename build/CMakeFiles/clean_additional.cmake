@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.16)
 
 if("${CONFIG}" STREQUAL "" OR "${CONFIG}" STREQUAL "")
   file(REMOVE_RECURSE
+  "IDL_S3.bin"
+  "IDL_S3.map"
   "bootloader\\bootloader.bin"
   "bootloader\\bootloader.elf"
   "bootloader\\bootloader.map"
@@ -18,8 +20,6 @@ if("${CONFIG}" STREQUAL "" OR "${CONFIG}" STREQUAL "")
   "ldgen_libraries"
   "ldgen_libraries.in"
   "project_elf_src_esp32s3.c"
-  "usb_camera_mic_spk.bin"
-  "usb_camera_mic_spk.map"
   "x509_crt_bundle.S"
   )
 endif()

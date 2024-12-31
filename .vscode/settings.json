@@ -12,6 +12,9 @@
         "cc_log.h": "c",
         "cc_hal_ble.h": "c",
         "gs_bind.h": "c",
-        "esp_camera.h": "c"
-    }
+        "esp_camera.h": "c",
+        "gs_mqtt.h": "c"
+    },
+    "idf.espIdfPathWin": "C:\\Users\\linus\\esp\\v5.3.2\\esp-idf",
+    "idf.toolsPathWin": "C:\\Users\\linus\\.espressif"
 }

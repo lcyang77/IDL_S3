@@ -1,6 +1,6 @@
 /* Automatically generated file; DO NOT EDIT */
 /* Espressif IoT Development Framework Linker Script */
-/* Generated from: D:\Work\ESP\ESP32_S2_Project\S3_Demo\esp-iot-solution-master\examples\usb\host\usb_camera_mic_spk\build\esp-idf\esp_system\ld\sections.ld.in */
+/* Generated from: D:\Work\ESP\Main_S3_IDL\IDL_S3\build\esp-idf\esp_system\ld\sections.ld.in */
 
 /*
 

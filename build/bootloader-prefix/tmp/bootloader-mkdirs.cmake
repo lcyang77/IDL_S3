@@ -10,18 +10,18 @@ if(NOT EXISTS "C:/Users/linus/esp/v5.3.2/esp-idf/components/bootloader/subprojec
   file(MAKE_DIRECTORY "C:/Users/linus/esp/v5.3.2/esp-idf/components/bootloader/subproject")
 endif()
 file(MAKE_DIRECTORY
-  "D:/Work/ESP/ESP32_S2_Project/S3_Demo/esp-iot-solution-master/examples/usb/host/usb_camera_mic_spk/build/bootloader"
-  "D:/Work/ESP/ESP32_S2_Project/S3_Demo/esp-iot-solution-master/examples/usb/host/usb_camera_mic_spk/build/bootloader-prefix"
-  "D:/Work/ESP/ESP32_S2_Project/S3_Demo/esp-iot-solution-master/examples/usb/host/usb_camera_mic_spk/build/bootloader-prefix/tmp"
-  "D:/Work/ESP/ESP32_S2_Project/S3_Demo/esp-iot-solution-master/examples/usb/host/usb_camera_mic_spk/build/bootloader-prefix/src/bootloader-stamp"
-  "D:/Work/ESP/ESP32_S2_Project/S3_Demo/esp-iot-solution-master/examples/usb/host/usb_camera_mic_spk/build/bootloader-prefix/src"
-  "D:/Work/ESP/ESP32_S2_Project/S3_Demo/esp-iot-solution-master/examples/usb/host/usb_camera_mic_spk/build/bootloader-prefix/src/bootloader-stamp"
+  "D:/Work/ESP/Main_S3_IDL/IDL_S3/build/bootloader"
+  "D:/Work/ESP/Main_S3_IDL/IDL_S3/build/bootloader-prefix"
+  "D:/Work/ESP/Main_S3_IDL/IDL_S3/build/bootloader-prefix/tmp"
+  "D:/Work/ESP/Main_S3_IDL/IDL_S3/build/bootloader-prefix/src/bootloader-stamp"
+  "D:/Work/ESP/Main_S3_IDL/IDL_S3/build/bootloader-prefix/src"
+  "D:/Work/ESP/Main_S3_IDL/IDL_S3/build/bootloader-prefix/src/bootloader-stamp"
 )
 
 set(configSubDirs )
 foreach(subDir IN LISTS configSubDirs)
-    file(MAKE_DIRECTORY "D:/Work/ESP/ESP32_S2_Project/S3_Demo/esp-iot-solution-master/examples/usb/host/usb_camera_mic_spk/build/bootloader-prefix/src/bootloader-stamp/${subDir}")
+    file(MAKE_DIRECTORY "D:/Work/ESP/Main_S3_IDL/IDL_S3/build/bootloader-prefix/src/bootloader-stamp/${subDir}")
 endforeach()
 if(cfgdir)
-  file(MAKE_DIRECTORY "D:/Work/ESP/ESP32_S2_Project/S3_Demo/esp-iot-solution-master/examples/usb/host/usb_camera_mic_spk/build/bootloader-prefix/src/bootloader-stamp${cfgdir}") # cfgdir has leading slash
+  file(MAKE_DIRECTORY "D:/Work/ESP/Main_S3_IDL/IDL_S3/build/bootloader-prefix/src/bootloader-stamp${cfgdir}") # cfgdir has leading slash
 endif()

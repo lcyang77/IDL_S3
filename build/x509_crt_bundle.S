@@ -1,4 +1,4 @@
-/* * Data converted from D:/Work/ESP/ESP32_S2_Project/S3_Demo/esp-iot-solution-master/examples/usb/host/usb_camera_mic_spk/build/esp-idf/mbedtls/x509_crt_bundle
+/* * Data converted from D:/Work/ESP/Main_S3_IDL/IDL_S3/build/esp-idf/mbedtls/x509_crt_bundle
  */
 .data
 #if !defined (__APPLE__) && !defined (__linux__)

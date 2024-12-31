@@ -25,6 +25,9 @@ typedef enum {
 
 typedef void (*gs_mqtt_msg_cb_t)(const char *topic, uint8_t qos, uint8_t retain, char *data, uint32_t len);
 
+typedef void (*gs_mqtt_birth_cb_t)(uint8_t msg_type, uint8_t status);
+cc_err_t gs_mqtt_register_birth_callback(gs_mqtt_birth_cb_t cb);
+
 cc_err_t gs_mqtt_init(void);
 
 cc_err_t gs_mqtt_reset_config(void);

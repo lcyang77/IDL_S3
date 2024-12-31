@@ -3,6 +3,6 @@
 cmake_minimum_required(VERSION 3.5)
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-project(usb_camera_mic_spk)
+project(IDL_S3)
 
 idf_build_set_property(COMPILE_OPTIONS "-Wno-format" APPEND)

@@ -1,4 +1,4 @@
-/* * Data converted from D:/Work/ESP/ESP32_S2_Project/S3_Demo/esp-iot-solution-master/examples/usb/host/usb_camera_mic_spk/components/xfer_http/www/index_uvc.html.gz
+/* * Data converted from D:/Work/ESP/Main_S3_IDL/IDL_S3/components/xfer_http/www/index_uvc.html.gz
  */
 .data
 #if !defined (__APPLE__) && !defined (__linux__)

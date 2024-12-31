@@ -15,7 +15,7 @@ set(SRCS
     gs/gs_mqtt.c
     gs/gs_ota.c
     gs/gs_wifi.c
-    gs/img_upload.c           # 添加新的图片上传源文件
+    gs_img/img_upload.c           # 添加新的图片上传源文件
     # 如果有其他源文件，继续添加
 )
 
@@ -23,6 +23,7 @@ set(SRCS
 set(INCLUDE_DIRS
     .
     gs/include
+    gs_img/include
 )
 
 # 注册组件
