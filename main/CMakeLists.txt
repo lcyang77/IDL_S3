@@ -16,6 +16,7 @@ set(SRCS
     gs/gs_ota.c
     gs/gs_wifi.c
     gs_img/img_upload.c           # 添加新的图片上传源文件
+    gs_img/uvc_camera.c
     # 如果有其他源文件，继续添加
 )
 
