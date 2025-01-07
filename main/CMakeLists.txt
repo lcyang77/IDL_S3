@@ -9,6 +9,7 @@ set(SRCS
     main.c
     frame_parser.c
     product.c
+    get_time.c
     gs/gs_bind.c
     gs/gs_device.c
     gs/gs_main.c
@@ -17,6 +18,8 @@ set(SRCS
     gs/gs_wifi.c
     gs_img/img_upload.c           # 添加新的图片上传源文件
     gs_img/uvc_camera.c
+    uart/uart_comm.c
+    uart/net_sta.c
     # 如果有其他源文件，继续添加
 )
 
@@ -25,6 +28,7 @@ set(INCLUDE_DIRS
     .
     gs/include
     gs_img/include
+    uart/include
 )
 
 # 注册组件

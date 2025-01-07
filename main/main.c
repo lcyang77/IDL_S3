@@ -1,25 +1,17 @@
-// main.c
-/*
- * SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
-
-// ========== 公共头文件 ==========
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
 #include <inttypes.h>
 
-// ========== ESP-IDF / FreeRTOS 相关头文件 ==========
-#include "sdkconfig.h"
+// ESP-IDF / FreeRTOS 相关头文件
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/queue.h"
+#include "freertos/event_groups.h" // 添加事件组支持
 #include "esp_err.h"
 #include "esp_log.h"
 #include "nvs_flash.h"
 
-// ========== 项目1 相关头文件 ==========
+// 项目相关头文件
 #include "cc_log.h"
 #include "cc_hal_sys.h"
 #include "cc_hal_kvs.h"
@@ -31,22 +23,60 @@
 #include "gs_main.h"
 #include "product.h"
 #include "gs_mqtt.h"
-
-// ========== 图片上传、配网相关头文件 ==========
 #include "img_upload.h"
 #include "gs_bind.h"
-
-// ========== UVC 摄像头独立模块 ==========
+#include "gs_device.h"
 #include "uvc_camera.h"
+#include "gs_wifi.h"
 
-// ========== 宏定义 & 全局变量 ==========
+// UART 通信头文件
+#include "uart_comm.h"
+
+// 新增：时间获取模块头文件
+#include "get_time.h"
+
+// 新增：联网状态管理模块头文件
+#include "net_sta.h"
+
 static const char *TAG = "app_main";
 
-// 用于判断 MQTT “出生消息”是否都发送成功
+// 判断 MQTT “出生消息”是否发送成功
 static bool s_version_msg_ok = false;
 static bool s_rssi_msg_ok    = false;
 
-// ========== 网络循环任务：跑项目的事件循环等 ==========
+// 固件版本定义（在 product.h 中定义，此处为示例）
+#define FIRMWARE_VERSION_MAJOR 9
+#define FIRMWARE_VERSION_MINOR 0
+#define FIRMWARE_VERSION_PATCH 0
+
+// 定义事件组位
+#define EVENT_BIT_TIME_UPDATED BIT0
+
+// 事件组句柄
+static EventGroupHandle_t s_event_group = NULL;
+
+// 定义消息类型枚举
+typedef enum {
+    EVENT_TIME_UPDATED,
+} app_event_t;
+
+/**
+ * @brief 时间更新完成的回调函数
+ */
+static void time_update_callback(bool success)
+{
+    if (success) {
+        ESP_LOGI(TAG, "[get_time_task] Time update succeeded");
+        xEventGroupSetBits(s_event_group, EVENT_BIT_TIME_UPDATED);
+    } else {
+        ESP_LOGE(TAG, "[get_time_task] Time update failed");
+        // 根据需要处理失败情况，例如重新触发时间获取
+    }
+}
+
+/**
+ * @brief 网络循环任务：跑项目事件循环、定时器等
+ */
 static void network_task(void *arg)
 {
     uint64_t last = cc_hal_sys_get_ms();
@@ -55,7 +85,6 @@ static void network_task(void *arg)
         uint16_t ms = now - last;
         last = now;
 
-        // 跑项目1事件循环
         cc_event_run();
         cc_timer_run(CC_TIMMER_MS(ms));
         cc_http_run(ms);
@@ -65,7 +94,36 @@ static void network_task(void *arg)
     }
 }
 
-// ========== MQTT 出生消息回调：在成功后启动 UVC 摄像头 ==========
+/* ------------------------------------------
+ * 用于获取时间的队列和任务
+ * ------------------------------------------ */
+static QueueHandle_t s_get_time_queue = NULL;
+
+/**
+ * @brief 独立任务，用于执行 get_time_update()
+ *
+ * 避免在事件回调或 MQTT 回调中直接执行HTTP+JSON解析。
+ */
+static void get_time_task(void *arg)
+{
+    // 注册时间更新完成的回调
+    get_time_register_callback(time_update_callback);
+
+    while (1) {
+        uint32_t msg;
+        if (xQueueReceive(s_get_time_queue, &msg, portMAX_DELAY)) {
+            ESP_LOGI(TAG, "[get_time_task] Received trigger => now calling get_time_update()");
+            get_time_update();
+
+            // 等待时间更新完成的事件
+            // 事件组将在回调中设置，主任务将处理
+        }
+    }
+}
+
+/**
+ * @brief MQTT 出生消息回调：两条出生消息都成功后，通知 get_time_task 获取时间
+ */
 static void birth_msg_callback(uint8_t msg_type, uint8_t status)
 {
     if (msg_type == 0) { // 版本消息
@@ -84,11 +142,92 @@ static void birth_msg_callback(uint8_t msg_type, uint8_t status)
         }
     }
 
-    // 当两条消息都成功发送，视为配网+MQTT已就绪，开始初始化UVC
+    // 两条消息都成功 => MQTT就绪
     if (s_version_msg_ok && s_rssi_msg_ok) {
         ESP_LOGI(TAG, "MQTT birth messages all sent, start UVC camera now...");
-        // 调用 UVC 模块的启动函数
+
+        // 通过队列触发获取时间
+        uint32_t dummy = 1;
+        xQueueSend(s_get_time_queue, &dummy, 0);
+
+        // 启动UVC摄像头
         uvc_camera_start();
+    }
+}
+
+/**
+ * @brief 根据是否已有 Wi-Fi 配置，决定连接或启动配网
+ * 
+ * 只在 UART 0x01 回调里调用。
+ */
+static void do_wifi_connect_or_config(void)
+{
+    bool have_config = gs_bind_get_bind_status();
+    if (have_config) {
+        ESP_LOGI(TAG, "[do_wifi_connect_or_config] Detected existing Wi-Fi config => connect now");
+        gs_wifi_sta_start_connect();
+
+        // 更新联网状态为正在连接路由器
+        net_sta_update_status(NET_STATUS_CONNECTING_ROUTER);
+    } else {
+        ESP_LOGI(TAG, "[do_wifi_connect_or_config] No Wi-Fi config => start AP+BLE provisioning");
+        gs_bind_start_cfg_mode(GS_BIND_CFG_MODE_AP | GS_BIND_CFG_MODE_BLE);
+
+        // 更新联网状态为未配置网络
+        net_sta_update_status(NET_STATUS_NOT_CONFIGURED);
+    }
+}
+
+/**
+ * @brief UART数据包回调：只处理部分指令(0x01/0x1A/...)，其余在uart_comm.c内处理
+ */
+static void uart_packet_received(const uart_packet_t *packet)
+{
+    ESP_LOGI(TAG, "uart_packet_received: CMD=0x%02X", packet->command);
+
+    switch (packet->command) {
+    case CMD_WIFI_CONFIG: {
+        // 主板配网指令0x01 => 根据有无配置决定连接或配网
+        ESP_LOGI(TAG, "Got CMD_WIFI_CONFIG (0x01) => do_wifi_connect_or_config...");
+        do_wifi_connect_or_config();
+
+        // 模拟异步操作，这里延时1秒后应答 0x02
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        ESP_LOGI(TAG, "WiFi connect/config done? -> send CMD_WIFI_RESPONSE (0x02) ack => success=WIFI_CONFIG_SUCCESS (0x00)");
+
+        esp_err_t ret = uart_comm_send_wifi_response(WIFI_CONFIG_SUCCESS);
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to send WiFi configuration response");
+        }
+        break;
+    }
+
+    case CMD_EXIT_CONFIG: {
+        // 主板发送退出配网指令0x1A
+        ESP_LOGI(TAG, "Got CMD_EXIT_CONFIG (0x1A) => stop provisioning");
+        gs_bind_stop_cfg_mode();
+
+        // 发送应答 0x1B
+        esp_err_t ret = uart_comm_send_exit_config_ack();
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to send Exit Config ACK");
+        } else {
+            ESP_LOGI(TAG, "Exit Config ACK sent successfully, waiting 3 seconds...");
+            vTaskDelay(pdMS_TO_TICKS(3000));
+        }
+        break;
+    }
+
+    case CMD_NETWORK_STATUS: {
+        // 如果主板也会发送 0x23 => 这里可处理或忽略
+        ESP_LOGI(TAG, "Received CMD_NETWORK_STATUS=0x23 from MCU?");
+        break;
+    }
+
+    // 其余指令(如CMD_GET_NETWORK_TIME=0x10)在uart_comm.c内已处理
+    default:
+        ESP_LOGW(TAG, "Unknown cmd=0x%02X", packet->command);
+        break;
     }
 }
 
@@ -102,7 +241,7 @@ void app_main(void)
     }
     ESP_ERROR_CHECK(ret);
 
-    // 2. 初始化项目1核心组件
+    // 2. 初始化项目核心组件
     CC_LOGI(TAG, "=== cc_init from project ===");
     cc_hal_sys_init();
     cc_hal_kvs_init();
@@ -111,25 +250,55 @@ void app_main(void)
     cc_timer_init();
     cc_tmr_task_init();
 
-    // gs_main + product_init
-    gs_init("1.21.0.0", "1.0.0");  // 内部会调用 gs_bind_init 等
+    // 初始化 gs_main + product 等
+    gs_init("1.21.0.0", "1.0.0");
     product_init();
+    gs_device_init();
+
+    // 初始化 get_time 模块
+    get_time_init();
+
+    // 创建事件组
+    s_event_group = xEventGroupCreate();
+    if (s_event_group == NULL) {
+        ESP_LOGE(TAG, "Failed to create event group");
+        // 根据需要处理错误
+    }
 
     // 启动网络循环任务
     xTaskCreate(network_task, "Network Task", 4096, NULL, 5, NULL);
 
-    // ========== 检查是否已配网，没有则启动配网 ========== 
-    if (!gs_bind_get_bind_status()) {
-        ESP_LOGI(TAG, "No WiFi config found, starting AP+BLE provisioning...");
-        gs_bind_start_cfg_mode(GS_BIND_CFG_MODE_AP | GS_BIND_CFG_MODE_BLE);
+    // 创建队列 + 启动 get_time_task
+    s_get_time_queue = xQueueCreate(1, sizeof(uint32_t));
+    if (s_get_time_queue == NULL) {
+        ESP_LOGE(TAG, "Failed to create get_time_queue");
+        // 根据需要处理错误
+    }
+    xTaskCreate(get_time_task, "get_time_task", 4096, NULL, 5, NULL);
+
+    // 5. 初始化 net_sta 模块
+    if (FIRMWARE_VERSION_MAJOR >= 9) {
+        ret = net_sta_init();
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "net_sta_init failed");
+        } else {
+            ESP_LOGI(TAG, "net_sta_init succeeded");
+            net_sta_start_monitor();
+        }
     } else {
-        ESP_LOGI(TAG, "Already bound, skip provisioning");
+        ESP_LOGW(TAG, "Firmware version < 9, net_sta module disabled");
     }
 
-    // 3. 注册 MQTT 出生消息回调
+    if (!gs_bind_get_bind_status()) {
+        ESP_LOGI(TAG, "No saved Wi-Fi config => waiting for CMD=0x01 from MCU to start provisioning/connection...");
+    } else {
+        ESP_LOGI(TAG, "Wi-Fi config is saved => but will not connect until 0x01 from MCU...");
+    }
+
+    // 注册 MQTT 出生消息回调
     gs_mqtt_register_birth_callback(birth_msg_callback);
 
-    // 4. 初始化图片上传模块
+    // 初始化图片上传模块(可选)
     const char *server_url = "http://120.25.207.32:3466/upload/ajaxuploadfile.php";
     ret = img_upload_init(server_url);
     if (ret != ESP_OK) {
@@ -138,11 +307,27 @@ void app_main(void)
         ESP_LOGI(TAG, "img_upload module initialized, URL: %s", server_url);
     }
 
-    // 【注意】此时并未初始化 UVC，只有在 birth_msg_callback() 中确认配网+MQTT成功后，
-    //       才调用 uvc_camera_start()
+    // 3. 初始化 UART
+    ret = uart_comm_init();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "UART communication init failed");
+    } else {
+        ESP_LOGI(TAG, "UART communication initialized");
+    }
 
-    // 主任务空转或执行其他逻辑
+    // 4. 注册数据包回调
+    uart_comm_register_callback(uart_packet_received);
+
+    // 6. 主循环：监听事件组
     while (1) {
+        // 等待时间更新完成事件
+        EventBits_t bits = xEventGroupWaitBits(s_event_group, EVENT_BIT_TIME_UPDATED, pdTRUE, pdFALSE, portMAX_DELAY);
+        if (bits & EVENT_BIT_TIME_UPDATED) {
+            // 时间已更新，调用 net_sta_update_status(0x04)
+            ESP_LOGI(TAG, "Time updated, updating network status to CONNECTED_SERVER");
+            net_sta_update_status(NET_STATUS_CONNECTED_SERVER);
+        }
+
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }

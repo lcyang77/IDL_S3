@@ -1,7 +1,7 @@
 {
     "version":            "1.1",
     "project_name":       "IDL_S3",
-    "project_version":    "32b0d6b-dirty",
+    "project_version":    "2d7c032-dirty",
     "project_path":       "D:/Work/ESP/Main_S3_IDL/IDL_S3",
     "idf_path":           "C:/Users/linus/esp/v5.3.2/esp-idf",
     "build_dir":          "D:/Work/ESP/Main_S3_IDL/IDL_S3/build",
@@ -17,7 +17,7 @@
     "min_rev":            "0",
     "max_rev":            "99",
     "phy_data_partition": "",
-    "monitor_baud" :      "2000000",
+    "monitor_baud" :      "9600",
     "monitor_toolprefix": "xtensa-esp32s3-elf-",
     "c_compiler":         "C:/Users/linus/.espressif/tools/xtensa-esp-elf/esp-13.2.0_20240530/xtensa-esp-elf/bin/xtensa-esp32s3-elf-gcc.exe",
     "config_environment" : {
@@ -1315,8 +1315,8 @@
             "managed_reqs": [],
             "managed_priv_reqs": [ "espressif__esp32_s3_usb_otg", "usb_stream" ],
             "file": "D:/Work/ESP/Main_S3_IDL/IDL_S3/build/esp-idf/main/libmain.a",
-            "sources": [ "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/main.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/frame_parser.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/product.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/gs/gs_bind.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/gs/gs_device.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/gs/gs_main.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/gs/gs_mqtt.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/gs/gs_ota.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/gs/gs_wifi.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/gs_img/img_upload.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/gs_img/uvc_camera.c" ],
-            "include_dirs": [ ".", "gs/include", "gs_img/include" ]
+            "sources": [ "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/main.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/frame_parser.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/product.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/get_time.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/gs/gs_bind.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/gs/gs_device.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/gs/gs_main.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/gs/gs_mqtt.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/gs/gs_ota.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/gs/gs_wifi.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/gs_img/img_upload.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/gs_img/uvc_camera.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/uart/uart_comm.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/uart/net_sta.c" ],
+            "include_dirs": [ ".", "gs/include", "gs_img/include", "uart/include" ]
         },
         "mbedtls": {
             "alias": "idf::mbedtls",
@@ -2986,7 +2986,7 @@
             "priv_reqs": [ "cc", "captive_portal", "flexible_button", "rbuffer", "espressif__esp32_s3_usb_otg", "usb_stream" ],
             "managed_reqs": [],
             "managed_priv_reqs": [ "espressif__esp32_s3_usb_otg", "usb_stream" ],
-            "include_dirs": [ ".", "gs/include", "gs_img/include" ]
+            "include_dirs": [ ".", "gs/include", "gs_img/include", "uart/include" ]
         },
         "captive_portal": {
             "alias": "idf::captive_portal",

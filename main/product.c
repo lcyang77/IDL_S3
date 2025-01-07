@@ -13,10 +13,10 @@
 #include "string.h"
 
 #include "frame_parser.h"
-
 #include "cJSON.h"
 
 #include "cc_tmr_task.h"
+
 static char *TAG = "product";
 
 #define MAX_LEN 32
@@ -28,8 +28,8 @@ static char *TAG = "product";
 #define TXD_PIN (GPIO_NUM_15)
 #define RXD_PIN (GPIO_NUM_16)
 
-#define SUB_TOPIC_SERVER_PUB                     "/service/publish"
-#define PUB_TOPIC_DEVICE_PUB                     "/event/notify"
+#define SUB_TOPIC_SERVER_PUB   "/service/publish"
+#define PUB_TOPIC_DEVICE_PUB   "/event/notify"
 
 void __reboot(uint32_t interval, void *arg){
     cc_tmr_task_delete(__reboot);
@@ -100,13 +100,15 @@ uint8_t stringToBinary(const char *str, unsigned char *output, uint8_t outputSiz
     return 1;
 }
 
-static void __frame_process(uint8_t *data, uint8_t len){
+static void __frame_process(uint8_t *data, uint8_t len)
+{
     cJSON *root_obj = NULL;
     char hex_str[MAX_DATA_LEN*2 + 1] = {0};
 
     CC_LOGI_HEXDUMP(TAG, data, len);
     frame_parser_add_buf(data, len);
-    while (1){
+
+    while (1) {
         uint32_t get_len = 0;
         uint8_t get_buf[FRAME_MAX_LEN] = {0};
         if(frame_parser_get_frame(get_buf, &get_len)){
@@ -126,6 +128,7 @@ static void __frame_process(uint8_t *data, uint8_t len){
                 continue;
             }
             CC_LOGI_HEXDUMP(TAG, head->data, head->len);
+
             binaryToString(head->data, head->len, hex_str, sizeof(hex_str));
             root_obj = cJSON_CreateObject();
             if(root_obj){
@@ -137,12 +140,13 @@ static void __frame_process(uint8_t *data, uint8_t len){
                 cJSON_AddItemToObject(root_obj, "type", cJSON_CreateString("0001"));
                 cJSON_AddItemToObject(root_obj, "data", cJSON_CreateString(hex_str));
                 cJSON_AddItemToObject(root_obj, "seq_no", cJSON_CreateString(gs_mqtt_generate_seq()));
+
                 char *msg = cJSON_PrintUnformatted(root_obj);
                 if(msg){
                     CC_LOGI(TAG, "pub %s: %s'", PUB_TOPIC_DEVICE_PUB, msg);
                     gs_mqtt_publish(PUB_TOPIC_DEVICE_PUB, (uint8_t *)msg, strlen(msg), GS_MQTT_QOS0, 0);
                     cJSON_free(msg);
-                }else{
+                } else {
                     CC_LOGE_CODE(TAG, CC_ERR_NO_MEM);
                 }
                 cJSON_Delete(root_obj);
@@ -168,7 +172,8 @@ static void __rx_task(void *arg)
     free(data);
 }
 
-void __mqtt_msg_cb(const char *topic, uint8_t qos, uint8_t retain, char *data, uint32_t len){
+void __mqtt_msg_cb(const char *topic, uint8_t qos, uint8_t retain, char *data, uint32_t len)
+{
     CC_LOGI(TAG, "msg %s: %.*s'", topic, len, data);
 
     static uint8_t buf[FRAME_MAX_LEN] = {0};
@@ -183,12 +188,16 @@ void __mqtt_msg_cb(const char *topic, uint8_t qos, uint8_t retain, char *data, u
             if(data_obj && data_obj->type == cJSON_String && strlen(data_obj->valuestring) <= MAX_DATA_LEN*2){
                 frame_parser_head_t *head = (frame_parser_head_t *)buf;
                 head->head = 0x23BB;
-                head->cmd = 0x02;; 
+                head->cmd = 0x02; 
                 stringToBinary(data_obj->valuestring, head->data, RX_BUF_SIZE, &head->len);
                 CC_LOGI_HEXDUMP(TAG, head->data, head->len);
+
                 frame_parser_last_t *last = (frame_parser_last_t *)(buf + sizeof(frame_parser_head_t) + head->len);
                 last->crc =  __crc_high_first((uint8_t *)head, sizeof(frame_parser_head_t) + head->len);
-                uart_write_bytes(EX_UART_NUM, head, sizeof(frame_parser_head_t) + head->len + sizeof(frame_parser_last_t));
+                
+                // 发送回串口
+                uart_write_bytes(EX_UART_NUM, (const char *)head, 
+                                 sizeof(frame_parser_head_t) + head->len + sizeof(frame_parser_last_t));
             }else{
                 CC_LOGE(TAG, "data error");
             }
@@ -201,11 +210,12 @@ void __mqtt_msg_cb(const char *topic, uint8_t qos, uint8_t retain, char *data, u
     }
 }
 
-cc_err_t __uart_init(void){
+cc_err_t __uart_init(void)
+{
     uart_config_t uart_config = {
         .baud_rate = 115200,
         .data_bits = UART_DATA_8_BITS,
-        .parity = UART_PARITY_DISABLE,
+        .parity    = UART_PARITY_DISABLE,
         .stop_bits = UART_STOP_BITS_1,
         .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
         .source_clk = UART_SCLK_DEFAULT,
@@ -216,17 +226,16 @@ cc_err_t __uart_init(void){
     uart_set_pin(EX_UART_NUM, TXD_PIN, RXD_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
 
     xTaskCreate(__rx_task, "__rx_task", 3072, NULL, 6, NULL);
-
     return CC_OK;
 }
 
 static void __event_handler(void* handler_args, cc_event_base_t base_event, int32_t id, void* event_data){
     CC_LOGD(TAG, "__event_handler: %s event: %d", base_event, id);
     if(base_event == GS_MQTT_EVENT){
-        switch (id)
-        {
+        switch (id) {
         case GS_MQTT_EVENT_CONNECTED:
             if(gs_bind_get_bind_status()){
+                // 只有绑定后，才订阅该 topic
                 gs_mqtt_subscribe(SUB_TOPIC_SERVER_PUB, GS_MQTT_QOS0);
             }
             break;
@@ -236,13 +245,18 @@ static void __event_handler(void* handler_args, cc_event_base_t base_event, int3
     }
 }
 
-cc_err_t product_init(void){
+cc_err_t product_init(void)
+{
+    // 如果 boot_auto_start_cfg_mode 里有值，就进入该模式(一般是配网模式)
     uint8_t mode = gs_bind_get_boot_auto_start_cfg_mode();
-    if(mode != GS_BIND_CFG_MODE_NULL){
+    if (mode != GS_BIND_CFG_MODE_NULL) {
         gs_bind_start_cfg_mode(mode);
         gs_bind_set_boot_auto_start_cfg_mode(GS_BIND_CFG_MODE_NULL);
-    }else if(gs_bind_get_bind_status()){
-        gs_wifi_sta_start_connect();
+    }
+    else if (gs_bind_get_bind_status()) {
+        // 这里原本会自动调用 gs_wifi_sta_start_connect();
+        // 但去掉，以防“开机就连”
+        CC_LOGI(TAG, "We have Wi-Fi config but won't connect now (waiting for 0x01)...");
     }
 
     __uart_init();

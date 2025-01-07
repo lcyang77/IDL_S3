@@ -294,6 +294,7 @@ cc_err_t gs_device_init(void){
     len = GS_DEVICE_SECRET_BUF_MAX_LEN;
     cc_hal_kvs_get("gs_device_secret", g_dev_triple.device_secret, &len);
 
+
     if(strlen(g_dev_triple.product_key) && strlen(g_dev_triple.device_name) && strlen(g_dev_triple.device_secret)){
         CC_LOGI(TAG, "read dev triple product_key: %s, device_name: %s, device_secret: %s", 
             g_dev_triple.product_key, g_dev_triple.device_name, g_dev_triple.device_secret);
