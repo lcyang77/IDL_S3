@@ -1,7 +1,7 @@
 {
     "version":            "1.1",
     "project_name":       "IDL_S3",
-    "project_version":    "2d7c032-dirty",
+    "project_version":    "cb4502d-dirty",
     "project_path":       "D:/Work/ESP/Main_S3_IDL/IDL_S3",
     "idf_path":           "C:/Users/linus/esp/v5.3.2/esp-idf",
     "build_dir":          "D:/Work/ESP/Main_S3_IDL/IDL_S3/build",

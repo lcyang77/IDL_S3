@@ -1,3 +1,6 @@
+/************************************************
+ * File: main.c
+ ************************************************/
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
@@ -5,8 +8,6 @@
 // ESP-IDF / FreeRTOS 相关头文件
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "freertos/queue.h"
-#include "freertos/event_groups.h" // 添加事件组支持
 #include "esp_err.h"
 #include "esp_log.h"
 #include "nvs_flash.h"
@@ -32,10 +33,10 @@
 // UART 通信头文件
 #include "uart_comm.h"
 
-// 新增：时间获取模块头文件
+// 新：时间获取模块头文件（改造后）
 #include "get_time.h"
 
-// 新增：联网状态管理模块头文件
+// 新：联网状态管理模块头文件
 #include "net_sta.h"
 
 static const char *TAG = "app_main";
@@ -48,31 +49,6 @@ static bool s_rssi_msg_ok    = false;
 #define FIRMWARE_VERSION_MAJOR 9
 #define FIRMWARE_VERSION_MINOR 0
 #define FIRMWARE_VERSION_PATCH 0
-
-// 定义事件组位
-#define EVENT_BIT_TIME_UPDATED BIT0
-
-// 事件组句柄
-static EventGroupHandle_t s_event_group = NULL;
-
-// 定义消息类型枚举
-typedef enum {
-    EVENT_TIME_UPDATED,
-} app_event_t;
-
-/**
- * @brief 时间更新完成的回调函数
- */
-static void time_update_callback(bool success)
-{
-    if (success) {
-        ESP_LOGI(TAG, "[get_time_task] Time update succeeded");
-        xEventGroupSetBits(s_event_group, EVENT_BIT_TIME_UPDATED);
-    } else {
-        ESP_LOGE(TAG, "[get_time_task] Time update failed");
-        // 根据需要处理失败情况，例如重新触发时间获取
-    }
-}
 
 /**
  * @brief 网络循环任务：跑项目事件循环、定时器等
@@ -94,35 +70,39 @@ static void network_task(void *arg)
     }
 }
 
-/* ------------------------------------------
- * 用于获取时间的队列和任务
- * ------------------------------------------ */
-static QueueHandle_t s_get_time_queue = NULL;
-
 /**
- * @brief 独立任务，用于执行 get_time_update()
- *
- * 避免在事件回调或 MQTT 回调中直接执行HTTP+JSON解析。
+ * @brief 当两条MQTT出生消息都成功后，将在这里启动一次异步任务
  */
-static void get_time_task(void *arg)
+static void mqtt_done_task(void *arg)
 {
-    // 注册时间更新完成的回调
-    get_time_register_callback(time_update_callback);
+    ESP_LOGI(TAG, "MQTT birth messages done. Starting time update...");
 
-    while (1) {
-        uint32_t msg;
-        if (xQueueReceive(s_get_time_queue, &msg, portMAX_DELAY)) {
-            ESP_LOGI(TAG, "[get_time_task] Received trigger => now calling get_time_update()");
-            get_time_update();
-
-            // 等待时间更新完成的事件
-            // 事件组将在回调中设置，主任务将处理
-        }
+    // 1) 启动时间更新
+    esp_err_t err = get_time_start_update(); 
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to start time update (err=0x%x)", err);
     }
+
+    // 2) 阻塞等待(最多等5秒)，看看是否成功
+    bool success = get_time_wait_done(5000);
+    if (success) {
+        ESP_LOGI(TAG, "Time update succeeded, valid UTC/timezone now.");
+    } else {
+        ESP_LOGW(TAG, "Time update failed or timed out, using old(0) value...");
+    }
+
+    // 3) 无论成功/失败，这里都认为已经连接云服务器 => 发送0x23(0x04)到MCU
+    net_sta_update_status(NET_STATUS_CONNECTED_SERVER);
+
+    // 4) 启动摄像头
+    uvc_camera_start();
+
+    // 任务结束
+    vTaskDelete(NULL);
 }
 
 /**
- * @brief MQTT 出生消息回调：两条出生消息都成功后，通知 get_time_task 获取时间
+ * @brief MQTT 出生消息回调
  */
 static void birth_msg_callback(uint8_t msg_type, uint8_t status)
 {
@@ -142,23 +122,15 @@ static void birth_msg_callback(uint8_t msg_type, uint8_t status)
         }
     }
 
-    // 两条消息都成功 => MQTT就绪
+    // 当两条都成功后，就创建一个任务来做后续的时间获取 + 状态更新 + 摄像头启动
     if (s_version_msg_ok && s_rssi_msg_ok) {
-        ESP_LOGI(TAG, "MQTT birth messages all sent, start UVC camera now...");
-
-        // 通过队列触发获取时间
-        uint32_t dummy = 1;
-        xQueueSend(s_get_time_queue, &dummy, 0);
-
-        // 启动UVC摄像头
-        uvc_camera_start();
+        ESP_LOGI(TAG, "MQTT birth messages all sent => create mqtt_done_task...");
+        xTaskCreate(mqtt_done_task, "mqtt_done_task", 4096, NULL, 5, NULL);
     }
 }
 
 /**
- * @brief 根据是否已有 Wi-Fi 配置，决定连接或启动配网
- * 
- * 只在 UART 0x01 回调里调用。
+ * @brief 根据是否已有 Wi-Fi 配置，决定连接或启动配网(只在 UART 0x01 回调里调用)
  */
 static void do_wifi_connect_or_config(void)
 {
@@ -179,7 +151,7 @@ static void do_wifi_connect_or_config(void)
 }
 
 /**
- * @brief UART数据包回调：只处理部分指令(0x01/0x1A/...)，其余在uart_comm.c内处理
+ * @brief UART数据包回调：只处理部分指令(0x01/0x1A/...)
  */
 static void uart_packet_received(const uart_packet_t *packet)
 {
@@ -219,12 +191,10 @@ static void uart_packet_received(const uart_packet_t *packet)
     }
 
     case CMD_NETWORK_STATUS: {
-        // 如果主板也会发送 0x23 => 这里可处理或忽略
-        ESP_LOGI(TAG, "Received CMD_NETWORK_STATUS=0x23 from MCU?");
+        ESP_LOGI(TAG, "Received CMD_NETWORK_STATUS=0x23 from MCU? (usually WiFi->MCU, might ignore)");
         break;
     }
 
-    // 其余指令(如CMD_GET_NETWORK_TIME=0x10)在uart_comm.c内已处理
     default:
         ESP_LOGW(TAG, "Unknown cmd=0x%02X", packet->command);
         break;
@@ -255,26 +225,11 @@ void app_main(void)
     product_init();
     gs_device_init();
 
-    // 初始化 get_time 模块
+    // 3. 初始化 get_time 模块(改造后，内部自己管理事件组/重试等)
     get_time_init();
 
-    // 创建事件组
-    s_event_group = xEventGroupCreate();
-    if (s_event_group == NULL) {
-        ESP_LOGE(TAG, "Failed to create event group");
-        // 根据需要处理错误
-    }
-
-    // 启动网络循环任务
+    // 4. 启动网络循环任务
     xTaskCreate(network_task, "Network Task", 4096, NULL, 5, NULL);
-
-    // 创建队列 + 启动 get_time_task
-    s_get_time_queue = xQueueCreate(1, sizeof(uint32_t));
-    if (s_get_time_queue == NULL) {
-        ESP_LOGE(TAG, "Failed to create get_time_queue");
-        // 根据需要处理错误
-    }
-    xTaskCreate(get_time_task, "get_time_task", 4096, NULL, 5, NULL);
 
     // 5. 初始化 net_sta 模块
     if (FIRMWARE_VERSION_MAJOR >= 9) {
@@ -307,27 +262,17 @@ void app_main(void)
         ESP_LOGI(TAG, "img_upload module initialized, URL: %s", server_url);
     }
 
-    // 3. 初始化 UART
+    // 6. 初始化 UART
     ret = uart_comm_init();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "UART communication init failed");
     } else {
         ESP_LOGI(TAG, "UART communication initialized");
     }
-
-    // 4. 注册数据包回调
     uart_comm_register_callback(uart_packet_received);
 
-    // 6. 主循环：监听事件组
+    // 7. 主循环：空转
     while (1) {
-        // 等待时间更新完成事件
-        EventBits_t bits = xEventGroupWaitBits(s_event_group, EVENT_BIT_TIME_UPDATED, pdTRUE, pdFALSE, portMAX_DELAY);
-        if (bits & EVENT_BIT_TIME_UPDATED) {
-            // 时间已更新，调用 net_sta_update_status(0x04)
-            ESP_LOGI(TAG, "Time updated, updating network status to CONNECTED_SERVER");
-            net_sta_update_status(NET_STATUS_CONNECTED_SERVER);
-        }
-
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }

@@ -13,39 +13,38 @@ extern "C" {
 #endif
 
 /**
- * @brief 初始化 get_time 模块，清空之前的UTC和时区缓存
+ * @brief 初始化 get_time 模块（内部创建事件组、清空缓存等）
  */
 void get_time_init(void);
 
 /**
- * @brief 从服务器获取网络时间并更新到本地缓存（通过HTTP）。
+ * @brief 启动一次“获取时间”的流程（HTTP 请求 + 重试）
  *
- * @note 仅在已联网的情况下才能成功获取；
- *       如果HTTP失败或服务端响应异常，则本地缓存不会被更新(仍然是之前的值)。
+ * 函数会快速返回。如果想知道最后结果，请调用 get_time_wait_done() 阻塞等待。
  *
- * @note 内部使用“HTTP 事件回调”，在 HTTP_EVENT_ON_DATA 收集数据，
- *       在 HTTP_EVENT_ON_FINISH 时解析JSON并更新本地 s_utc_time & s_time_zone
+ * @return ESP_OK 表示成功发起请求；如果多次重试都失败，将返回错误码。
  */
-void get_time_update(void);
+esp_err_t get_time_start_update(void);
 
 /**
- * @brief 获取当前缓存的UTC秒数
- * 
- * @return 当前UTC时间（自1970-01-01 00:00:00以来的秒数）。初始或失败时可能为0。
+ * @brief 阻塞等待“获取时间”完成(成功或超时)。
+ *
+ * @param timeout_ms 等待超时时间(ms)。超时后返回false。
+ * @return true=本次更新成功(已获取到非零时间)，false=更新失败或超时。
+ */
+bool get_time_wait_done(uint32_t timeout_ms);
+
+/**
+ * @brief 获取最近缓存的UTC秒数
+ * @return UTC秒数；若尚未获取成功，可能为0
  */
 uint32_t get_time_get_utc(void);
 
 /**
- * @brief 获取当前缓存的时区（单位为“小时*10 + 刻(15分钟)”）
- * 
- * @return 取值范围 -128~127，例如UTC+8 => 80，UTC+5:45 => 53。
- *         初始或失败时可能为0。
+ * @brief 获取最近缓存的时区(单位0.1小时)
+ * @return 时区值；若尚未获取成功，可能为0
  */
 int8_t get_time_get_timezone(void);
-
-// 注册时间更新完成的回调
-typedef void (*get_time_callback_t)(bool success);
-esp_err_t get_time_register_callback(get_time_callback_t callback);
 
 #ifdef __cplusplus
 }
