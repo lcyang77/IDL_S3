@@ -31,7 +31,7 @@
 #include "gs_wifi.h"
 
 // UART 通信头文件
-#include "uart_comm.h"
+#include "net_uart_comm.h"
 
 // 新：时间获取模块头文件（改造后）
 #include "get_time.h"

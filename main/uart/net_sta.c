@@ -6,7 +6,7 @@
 #include "freertos/task.h"
 #include "freertos/timers.h"
 #include "esp_log.h"
-#include "uart_comm.h"
+#include "net_uart_comm.h"
 #include "get_time.h"
 
 static const char *TAG = "net_sta";
