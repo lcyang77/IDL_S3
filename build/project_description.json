@@ -1,7 +1,7 @@
 {
     "version":            "1.1",
     "project_name":       "IDL_S3",
-    "project_version":    "ecd8fa8-dirty",
+    "project_version":    "b92637c-dirty",
     "project_path":       "D:/Work/ESP/Main_S3_IDL/IDL_S3",
     "idf_path":           "C:/Users/linus/esp/v5.3.2/esp-idf",
     "build_dir":          "D:/Work/ESP/Main_S3_IDL/IDL_S3/build",
@@ -1315,7 +1315,7 @@
             "managed_reqs": [],
             "managed_priv_reqs": [ "espressif__esp32_s3_usb_otg", "usb_stream" ],
             "file": "D:/Work/ESP/Main_S3_IDL/IDL_S3/build/esp-idf/main/libmain.a",
-            "sources": [ "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/main.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/frame_parser.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/product.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/get_time.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/gs/gs_bind.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/gs/gs_device.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/gs/gs_main.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/gs/gs_mqtt.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/gs/gs_ota.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/gs/gs_wifi.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/gs_img/img_upload.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/gs_img/uvc_camera.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/uart/net_uart_comm.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/uart/net_sta.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/uart/cc_event_reset.c" ],
+            "sources": [ "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/main.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/frame_parser.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/product.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/get_time.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/gs/gs_bind.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/gs/gs_device.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/gs/gs_main.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/gs/gs_mqtt.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/gs/gs_ota.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/gs/gs_wifi.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/gs_img/img_upload.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/gs_img/uvc_camera.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/uart/net_uart_comm.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/uart/net_sta.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/uart/cc_event_reset.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/uart/uart_config.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/uart/msg_upload.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/uart/unlock.c", "D:/Work/ESP/Main_S3_IDL/IDL_S3/main/uart/img_transfer.c" ],
             "include_dirs": [ ".", "gs/include", "gs_img/include", "uart/include" ]
         },
         "mbedtls": {

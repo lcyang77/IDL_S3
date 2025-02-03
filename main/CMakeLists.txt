@@ -21,6 +21,10 @@ set(SRCS
     uart/net_uart_comm.c
     uart/net_sta.c
     uart/cc_event_reset.c
+    uart/uart_config.c
+    uart/msg_upload.c
+    uart/unlock.c
+    uart/img_transfer.c
     # 如果有其他源文件，继续添加
 )
 

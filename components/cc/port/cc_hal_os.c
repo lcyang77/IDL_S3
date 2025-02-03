@@ -54,7 +54,7 @@ void cc_hal_os_task_delete(cc_os_task_handle_t handle){
 
 /* ---------------------------------------------------------------------------
  * 注意：
- *  - 如果 priority 是 uint8_t，请打印时强转为 (unsigned) 或 (uint32_t)。
+ *  - 如果 priority 是 uint8_t，打印时强转为 (unsigned) 或 (uint32_t)。
  *  - 如果 stack_size 是 uint32_t，同理可用 %u + (unsigned) 强转。
  *  - 如果 free_heap 是 size_t，最好用 %zu。如果不想用 %zu，就用 %u + (unsigned)强转。
  * ---------------------------------------------------------------------------
@@ -69,7 +69,7 @@ cc_err_t cc_hal_os_task_create(cc_os_task_t task,
     // 使用 %s 打印字符串
     CC_LOGI(TAG, "Attempting to create task: %s", name);
 
-    // 如果想坚持用 PRIu32，也可以写成：
+    // 如果坚持用 PRIu32，也可以写成：
     // CC_LOGI(TAG, "Task parameters: stack_size=%" PRIu32 ", priority=%" PRIu32,
     //         (uint32_t)stack_size, (uint32_t)priority);
 

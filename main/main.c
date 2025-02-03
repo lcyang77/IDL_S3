@@ -33,11 +33,23 @@
 // UART 通信头文件
 #include "net_uart_comm.h"
 
-// 新：时间获取模块头文件（改造后）
+// 新：时间获取模块头文件
 #include "get_time.h"
 
 // 新：联网状态管理模块头文件
 #include "net_sta.h"
+
+// UART配置模块头文件
+#include "uart_config.h"
+
+// 新增：msg_upload 模块头文件
+#include "msg_upload.h"
+
+// 新增：unlock 模块头文件
+#include "unlock.h"
+
+// 新增：img_transfer 模块头文件
+#include "img_transfer.h"
 
 static const char *TAG = "app_main";
 
@@ -71,7 +83,7 @@ static void network_task(void *arg)
 }
 
 /**
- * @brief 当两条MQTT出生消息都成功后，将在这里启动一次异步任务
+ * @brief 当两条 MQTT 出生消息都成功后，将在这里启动一次异步任务
  */
 static void mqtt_done_task(void *arg)
 {
@@ -91,7 +103,7 @@ static void mqtt_done_task(void *arg)
         ESP_LOGW(TAG, "Time update failed or timed out, using old(0) value...");
     }
 
-    // 3) 无论成功/失败，这里都认为已经连接云服务器 => 发送0x23(0x04)到MCU
+    // 3) 无论成功/失败，这里都认为已经连接云服务器 => 发送 0x23(0x04) 到 MCU
     net_sta_update_status(NET_STATUS_CONNECTED_SERVER);
 
     // 4) 启动摄像头
@@ -113,7 +125,7 @@ static void birth_msg_callback(uint8_t msg_type, uint8_t status)
         } else {
             ESP_LOGE(TAG, "Version message send failed");
         }
-    } else if (msg_type == 1) { // RSSI消息
+    } else if (msg_type == 1) { // RSSI 消息
         if (status) {
             ESP_LOGI(TAG, "RSSI message sent successfully");
             s_rssi_msg_ok = true;
@@ -122,7 +134,7 @@ static void birth_msg_callback(uint8_t msg_type, uint8_t status)
         }
     }
 
-    // 当两条都成功后，就创建一个任务来做后续的时间获取 + 状态更新 + 摄像头启动
+    // 当两条都成功后，就创建任务执行后续时间更新、状态更新和摄像头启动
     if (s_version_msg_ok && s_rssi_msg_ok) {
         ESP_LOGI(TAG, "MQTT birth messages all sent => create mqtt_done_task...");
         xTaskCreate(mqtt_done_task, "mqtt_done_task", 4096, NULL, 5, NULL);
@@ -130,7 +142,7 @@ static void birth_msg_callback(uint8_t msg_type, uint8_t status)
 }
 
 /**
- * @brief 根据是否已有 Wi-Fi 配置，决定连接或启动配网(只在 UART 0x01 回调里调用)
+ * @brief 根据是否已有 Wi-Fi 配置，决定连接或启动配网（仅在 CMD_WIFI_CONFIG 回调中调用）
  */
 static void do_wifi_connect_or_config(void)
 {
@@ -138,35 +150,29 @@ static void do_wifi_connect_or_config(void)
     if (have_config) {
         ESP_LOGI(TAG, "[do_wifi_connect_or_config] Detected existing Wi-Fi config => connect now");
         gs_wifi_sta_start_connect();
-
-        // 更新联网状态为正在连接路由器
         net_sta_update_status(NET_STATUS_CONNECTING_ROUTER);
     } else {
         ESP_LOGI(TAG, "[do_wifi_connect_or_config] No Wi-Fi config => start AP+BLE provisioning");
         gs_bind_start_cfg_mode(GS_BIND_CFG_MODE_AP | GS_BIND_CFG_MODE_BLE);
-
-        // 更新联网状态为未配置网络
         net_sta_update_status(NET_STATUS_NOT_CONFIGURED);
     }
 }
 
 /**
- * @brief UART数据包回调：只处理部分指令(0x01/0x1A/...)
+ * @brief UART 数据包回调：处理各种指令（0x01/0x1A/0x03/0x04/0x12/0x1C/…）
  */
 static void uart_packet_received(const uart_packet_t *packet)
 {
     ESP_LOGI(TAG, "uart_packet_received: CMD=0x%02X", packet->command);
 
     switch (packet->command) {
+
+    // 0x01: WiFi 配网
     case CMD_WIFI_CONFIG: {
-        // 主板配网指令0x01 => 根据有无配置决定连接或配网
         ESP_LOGI(TAG, "Got CMD_WIFI_CONFIG (0x01) => do_wifi_connect_or_config...");
         do_wifi_connect_or_config();
-
-        // 模拟异步操作，这里延时1秒后应答 0x02
         vTaskDelay(pdMS_TO_TICKS(1000));
         ESP_LOGI(TAG, "WiFi connect/config done? -> send CMD_WIFI_RESPONSE (0x02) ack => success=WIFI_CONFIG_SUCCESS (0x00)");
-
         esp_err_t ret = uart_comm_send_wifi_response(WIFI_CONFIG_SUCCESS);
         if (ret != ESP_OK) {
             ESP_LOGE(TAG, "Failed to send WiFi configuration response");
@@ -174,12 +180,10 @@ static void uart_packet_received(const uart_packet_t *packet)
         break;
     }
 
+    // 0x1A: 退出配网
     case CMD_EXIT_CONFIG: {
-        // 主板发送退出配网指令0x1A
         ESP_LOGI(TAG, "Got CMD_EXIT_CONFIG (0x1A) => stop provisioning");
         gs_bind_stop_cfg_mode();
-
-        // 发送应答 0x1B
         esp_err_t ret = uart_comm_send_exit_config_ack();
         if (ret != ESP_OK) {
             ESP_LOGE(TAG, "Failed to send Exit Config ACK");
@@ -190,8 +194,29 @@ static void uart_packet_received(const uart_packet_t *packet)
         break;
     }
 
+    // 0x23: 网络状态（WiFi→MCU，通常可忽略）
     case CMD_NETWORK_STATUS: {
-        ESP_LOGI(TAG, "Received CMD_NETWORK_STATUS=0x23 from MCU? (usually WiFi->MCU, might ignore)");
+        ESP_LOGI(TAG, "Received CMD_NETWORK_STATUS=0x23 from MCU (usually ignored)");
+        break;
+    }
+
+    // 0x03 / 0x04: 转交给 msg_upload 模块
+    case 0x03:
+    case 0x04:
+        ESP_LOGI(TAG, "Got CMD=0x%02X => forward to msg_upload...", packet->command);
+        msg_upload_uart_callback(packet);
+        break;
+
+    // 0x12: 远程开锁应答（MCU→WiFi）
+    case 0x12:
+        ESP_LOGI(TAG, "Got CMD=0x12 => unlock_handle_mcu_packet");
+        unlock_handle_mcu_packet(packet);
+        break;
+
+    // 0x1C: 图传设置（MCU→WiFi），交由 img_transfer 模块处理
+    case CMD_IMG_TRANSFER: {
+        ESP_LOGI(TAG, "Got CMD_IMG_TRANSFER (0x1C) => forward to img_transfer");
+        img_transfer_handle_uart_packet(packet);
         break;
     }
 
@@ -220,12 +245,11 @@ void app_main(void)
     cc_timer_init();
     cc_tmr_task_init();
 
-    // 初始化 gs_main + product 等
     gs_init("1.21.0.0", "1.0.0");
     product_init();
     gs_device_init();
 
-    // 3. 初始化 get_time 模块(改造后，内部自己管理事件组/重试等)
+    // 3. 初始化 get_time 模块
     get_time_init();
 
     // 4. 启动网络循环任务
@@ -247,13 +271,13 @@ void app_main(void)
     if (!gs_bind_get_bind_status()) {
         ESP_LOGI(TAG, "No saved Wi-Fi config => waiting for CMD=0x01 from MCU to start provisioning/connection...");
     } else {
-        ESP_LOGI(TAG, "Wi-Fi config is saved => but will not connect until 0x01 from MCU...");
+        ESP_LOGI(TAG, "Wi-Fi config is saved => but will not connect until CMD=0x01 from MCU...");
     }
 
     // 注册 MQTT 出生消息回调
     gs_mqtt_register_birth_callback(birth_msg_callback);
 
-    // 初始化图片上传模块(可选)
+    // 初始化图片上传模块
     const char *server_url = "http://120.25.207.32:3466/upload/ajaxuploadfile.php";
     ret = img_upload_init(server_url);
     if (ret != ESP_OK) {
@@ -271,7 +295,31 @@ void app_main(void)
     }
     uart_comm_register_callback(uart_packet_received);
 
-    // 7. 主循环：空转
+    // 初始化 msg_upload 模块
+    ret = msg_upload_init();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "msg_upload_init failed: %d", ret);
+    } else {
+        ESP_LOGI(TAG, "msg_upload_init succeeded");
+    }
+
+    // 初始化 unlock 模块
+    ret = unlock_init();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "unlock_init failed: %d", ret);
+    } else {
+        ESP_LOGI(TAG, "unlock_init succeeded");
+    }
+
+    // 初始化 img_transfer 模块
+    ret = img_transfer_init();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "img_transfer_init failed: %d", ret);
+    } else {
+        ESP_LOGI(TAG, "img_transfer_init succeeded");
+    }
+
+    // 7. 主循环（空转）
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(1000));
     }

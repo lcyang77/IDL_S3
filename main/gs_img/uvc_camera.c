@@ -106,28 +106,6 @@ void esp_camera_fb_return(camera_fb_t *fb)
     xEventGroupSetBits(s_evt_handle, BIT2_NEW_FRAME_END);
 }
 
-// ========== 定时抓取UVC并上传任务 ==========
-static void uvc_capture_upload_task(void *pvParameters)
-{
-    while (1) {
-        camera_fb_t *fb = esp_camera_fb_get();
-        if (!fb) {
-            ESP_LOGE(TAG, "Failed to get frame from UVC camera");
-        } else {
-            ESP_LOGI(TAG, "UVC frame size: %u bytes", fb->len);
-            // 上传
-            esp_err_t ret = img_upload_send((const uint8_t *)fb->buf, fb->len);
-            if (ret == ESP_OK) {
-                ESP_LOGI(TAG, "UVC frame upload success");
-            } else {
-                ESP_LOGE(TAG, "UVC frame upload failed");
-            }
-            esp_camera_fb_return(fb);
-        }
-        vTaskDelay(pdMS_TO_TICKS(UVC_CAPTURE_UPLOAD_PERIOD_MS));
-    }
-}
-
 // ========== 启动UVC摄像头：对外暴露的接口 ==========
 void uvc_camera_start(void)
 {
@@ -171,8 +149,7 @@ void uvc_camera_start(void)
     ESP_ERROR_CHECK(usb_streaming_start());
     ESP_ERROR_CHECK(usb_streaming_connect_wait(portMAX_DELAY));
 
-    // 5. 启动定时抓取并上传任务
-    xTaskCreate(uvc_capture_upload_task, "uvc_capture_upload_task", 8192, NULL, 5, NULL);
-
-    ESP_LOGI(TAG, "UVC camera initialization done.");
+    // 5. 不再启动周期性抓拍任务，而是等待其他模块（例如 img_transfer）调用 esp_camera_fb_get()
+    ESP_LOGI(TAG, "UVC camera initialized and streaming started.");
 }
+
