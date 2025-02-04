@@ -1211,3 +1211,32 @@ esp_err_t uart_comm_register_callback(uart_packet_callback_t callback)
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

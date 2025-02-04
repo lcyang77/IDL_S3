@@ -60,7 +60,7 @@ static const char *TAG = "app_main";
 static bool s_version_msg_ok = false;
 static bool s_rssi_msg_ok    = false;
 
-// 固件版本定义（在 product.h 中定义，此处为示例）
+// 固件版本定义
 #define FIRMWARE_VERSION_MAJOR 9
 #define FIRMWARE_VERSION_MINOR 0
 #define FIRMWARE_VERSION_PATCH 0

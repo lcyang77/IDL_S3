@@ -18,10 +18,36 @@ static net_status_t current_status = NET_STATUS_NOT_CONFIGURED;
 static TimerHandle_t timer_5s = NULL;
 static TimerHandle_t timer_12s = NULL;
 
+/**
+ * @brief 取消并删除监控定时器
+ */
+static void net_sta_cancel_monitor(void)
+{
+    if (timer_5s != NULL) {
+        if (xTimerStop(timer_5s, 0) == pdPASS) {
+            ESP_LOGI(TAG, "timer_5s stopped");
+        }
+        if (xTimerDelete(timer_5s, 0) == pdPASS) {
+            ESP_LOGI(TAG, "timer_5s deleted");
+        }
+        timer_5s = NULL;
+    }
+    if (timer_12s != NULL) {
+        if (xTimerStop(timer_12s, 0) == pdPASS) {
+            ESP_LOGI(TAG, "timer_12s stopped");
+        }
+        if (xTimerDelete(timer_12s, 0) == pdPASS) {
+            ESP_LOGI(TAG, "timer_12s deleted");
+        }
+        timer_12s = NULL;
+    }
+}
+
 // 定时器回调函数
 static void timer_5s_callback(TimerHandle_t xTimer)
 {
-    if (current_status < NET_STATUS_CONNECTED_ROUTER) {
+    // 若状态仍为未配置，说明未收到配网指令
+    if (current_status == NET_STATUS_NOT_CONFIGURED) {
         ESP_LOGE(TAG, "Network connection failed after 5 seconds.");
         // 根据需求进行断电或其他处理
         // 示例：断电逻辑需根据具体硬件实现
@@ -30,6 +56,7 @@ static void timer_5s_callback(TimerHandle_t xTimer)
 
 static void timer_12s_callback(TimerHandle_t xTimer)
 {
+    // 当状态未达到连接云服务器时触发错误提示
     if (current_status < NET_STATUS_CONNECTED_SERVER) {
         ESP_LOGE(TAG, "Network connection failed after 12 seconds.");
         // 根据需求进行断电或其他处理
@@ -57,6 +84,11 @@ esp_err_t net_sta_update_status(net_status_t status)
     if (status != current_status) {
         current_status = status;
         ESP_LOGI(TAG, "Network status updated to: 0x%02X", current_status);
+
+        // 如果状态提升到“正在连接路由器”及以上，则取消监控定时器，避免后续错误回调
+        if (current_status >= NET_STATUS_CONNECTING_ROUTER) {
+            net_sta_cancel_monitor();
+        }
 
         // 获取UTC时间和时区
         uint32_t utc_time = get_time_get_utc();
@@ -97,27 +129,30 @@ esp_err_t net_sta_update_status(net_status_t status)
 // 启动联网状态监控
 void net_sta_start_monitor(void)
 {
-    // 创建5秒定时器
-    timer_5s = xTimerCreate("timer_5s", pdMS_TO_TICKS(5000), pdFALSE, (void*)0, timer_5s_callback);
-    if (timer_5s != NULL) {
-        if (xTimerStart(timer_5s, 0) != pdPASS) {
-            ESP_LOGE(TAG, "Failed to start timer_5s");
+    // 仅在未配置网络时启动监控
+    if (current_status == NET_STATUS_NOT_CONFIGURED) {
+        // 创建5秒定时器
+        timer_5s = xTimerCreate("timer_5s", pdMS_TO_TICKS(5000), pdFALSE, (void*)0, timer_5s_callback);
+        if (timer_5s != NULL) {
+            if (xTimerStart(timer_5s, 0) != pdPASS) {
+                ESP_LOGE(TAG, "Failed to start timer_5s");
+            } else {
+                ESP_LOGI(TAG, "timer_5s started");
+            }
         } else {
-            ESP_LOGI(TAG, "timer_5s started");
+            ESP_LOGE(TAG, "Failed to create timer_5s");
         }
-    } else {
-        ESP_LOGE(TAG, "Failed to create timer_5s");
-    }
 
-    // 创建12秒定时器
-    timer_12s = xTimerCreate("timer_12s", pdMS_TO_TICKS(12000), pdFALSE, (void*)0, timer_12s_callback);
-    if (timer_12s != NULL) {
-        if (xTimerStart(timer_12s, 0) != pdPASS) {
-            ESP_LOGE(TAG, "Failed to start timer_12s");
+        // 创建12秒定时器
+        timer_12s = xTimerCreate("timer_12s", pdMS_TO_TICKS(12000), pdFALSE, (void*)0, timer_12s_callback);
+        if (timer_12s != NULL) {
+            if (xTimerStart(timer_12s, 0) != pdPASS) {
+                ESP_LOGE(TAG, "Failed to start timer_12s");
+            } else {
+                ESP_LOGI(TAG, "timer_12s started");
+            }
         } else {
-            ESP_LOGI(TAG, "timer_12s started");
+            ESP_LOGE(TAG, "Failed to create timer_12s");
         }
-    } else {
-        ESP_LOGE(TAG, "Failed to create timer_12s");
     }
 }
