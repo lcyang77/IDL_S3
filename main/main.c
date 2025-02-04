@@ -33,23 +33,26 @@
 // UART 通信头文件
 #include "net_uart_comm.h"
 
-// 新：时间获取模块头文件
+// 时间获取模块头文件
 #include "get_time.h"
 
-// 新：联网状态管理模块头文件
+// 联网状态管理模块头文件
 #include "net_sta.h"
 
 // UART配置模块头文件
 #include "uart_config.h"
 
-// 新增：msg_upload 模块头文件
+// msg_upload 模块头文件
 #include "msg_upload.h"
 
-// 新增：unlock 模块头文件
+// unlock 模块头文件
 #include "unlock.h"
 
-// 新增：img_transfer 模块头文件
+// img_transfer 模块头文件
 #include "img_transfer.h"
+
+// 新增：状态上传模块头文件
+#include "state_report.h"
 
 static const char *TAG = "app_main";
 
@@ -159,7 +162,7 @@ static void do_wifi_connect_or_config(void)
 }
 
 /**
- * @brief UART 数据包回调：处理各种指令（0x01/0x1A/0x03/0x04/0x12/0x1C/…）
+ * @brief UART 数据包回调：处理各种指令（0x01/0x1A/0x03/0x04/0x12/0x1C/...）
  */
 static void uart_packet_received(const uart_packet_t *packet)
 {
@@ -217,6 +220,13 @@ static void uart_packet_received(const uart_packet_t *packet)
     case CMD_IMG_TRANSFER: {
         ESP_LOGI(TAG, "Got CMD_IMG_TRANSFER (0x1C) => forward to img_transfer");
         img_transfer_handle_uart_packet(packet);
+        break;
+    }
+
+    // 新增：0x42 状态上传，由 state_report 模块处理
+    case CMD_STATE_REPORT: {
+        ESP_LOGI(TAG, "Got CMD_STATE_REPORT (0x42) => forward to state_report module");
+        state_report_handle_uart_packet(packet);
         break;
     }
 
@@ -294,6 +304,14 @@ void app_main(void)
         ESP_LOGI(TAG, "UART communication initialized");
     }
     uart_comm_register_callback(uart_packet_received);
+
+    // 新增：初始化状态上报模块（包括重传与缓存机制）
+    ret = state_report_init();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "state_report_init failed");
+    } else {
+        ESP_LOGI(TAG, "state_report module initialized");
+    }
 
     // 初始化 msg_upload 模块
     ret = msg_upload_init();

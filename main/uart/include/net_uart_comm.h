@@ -11,14 +11,16 @@ typedef enum {
     CMD_WIFI_RESPONSE         = 0x02, // WiFi 配网应答
     CMD_NETWORK_STATUS        = 0x23, // 联网状态通知
     CMD_EXIT_CONFIG           = 0x1A, // 配网退出
-    CMD_EXIT_CONFIG_ACK       = 0x1B, // 配网退出应答令
+    CMD_EXIT_CONFIG_ACK       = 0x1B, // 配网退出应答
     CMD_GET_NETWORK_TIME      = 0x10, // MCU->WiFi 获取网络时间
     CMD_GET_NETWORK_TIME_RSP  = 0x11, // WiFi->MCU 网络时间应答
     CMD_GET_DEVICE_INFO       = 0x06, // MCU->WiFi 获取设备信息 
     CMD_GET_DEVICE_INFO_RSP   = 0x07, // WiFi->MCU 设备信息应答
     CMD_CLEAR_DATA            = 0x05, // 清除数据，恢复出厂设置
     CMD_IMG_TRANSFER          = 0x1C, // 图传开启/关闭指令（MCU->WiFi）
-    // 注意：图传应答命令 0x1D 和图传结果命令 0x27由 img_transfer 模块处理
+    // 状态上传相关命令（由 state_report 模块处理）
+    CMD_STATE_REPORT          = 0x42, // 主板上报状态
+    CMD_STATE_REPORT_ACK      = 0x43, // WiFi 模块对状态上报的应答
 } uart_command_t;
 
 // WiFi 配网结果状态
@@ -69,7 +71,7 @@ esp_err_t uart_comm_send_packet(const uart_packet_t *packet);
 // 发送 WiFi 配网响应
 esp_err_t uart_comm_send_wifi_response(wifi_config_status_t status);
 
-// 发送网络状态通知（保留原有实现）
+// 发送网络状态通知
 esp_err_t uart_comm_send_network_status(bool connected);
 
 // 发送配网退出应答
@@ -78,10 +80,10 @@ esp_err_t uart_comm_send_exit_config_ack(void);
 // 发送网络时间应答
 esp_err_t uart_comm_send_network_time(uint32_t utc_time_sec, int8_t timezone_15min);
 
-// 发送设备信息
+// 发送设备信息应答
 esp_err_t uart_comm_send_device_info(const char *device_id, const uint8_t *mac);
 
-// 新增：发送清除数据响应
+// 发送清除数据响应
 esp_err_t uart_comm_send_clear_data_response(bool success);
 
 #endif // NET_UART_COMM_H

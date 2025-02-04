@@ -12,6 +12,7 @@
 #include "uart_config.h"
 #include "nvs_flash.h"
 #include "esp_system.h"
+#include "state_report.h"  // 为了使用 CMD_STATE_REPORT 定义
 
 static const char *TAG = "uart_comm";
 
@@ -185,7 +186,7 @@ esp_err_t uart_comm_send_clear_data_response(bool success)
     uart_packet_t packet = {0};
     packet.header[0] = 0xAA;
     packet.header[1] = 0x55;
-    packet.command = CMD_WIFI_RESPONSE; // 使用已有的 WiFi 响应命令
+    packet.command = CMD_WIFI_RESPONSE; // 使用 WiFi 响应命令
     packet.data[0] = success ? 0x00 : 0x02;
     for (int i = 1; i < 6; i++) {
         packet.data[i] = 0x00;
@@ -322,6 +323,19 @@ static void uart_packet_received_internal(const uart_packet_t *packet)
         if (s_packet_callback) {
             s_packet_callback(packet);
         }
+        break;
+    // 新增：状态上报相关分支
+    case CMD_STATE_REPORT:
+        ESP_LOGI(TAG, "Got CMD_STATE_REPORT (0x42) => forward to state_report module");
+        if (s_packet_callback) {
+            s_packet_callback(packet);
+        }
+        break;
+    case CMD_STATE_REPORT_ACK:
+        ESP_LOGI(TAG, "Received CMD_STATE_REPORT_ACK (0x43)");
+        /* 当收到状态上报应答时，调用 state_report 模块的ACK处理函数，
+           以移除待重传的消息 */
+        state_report_ack_handler();
         break;
     default:
         ESP_LOGW(TAG, "Unknown cmd=0x%02X", packet->command);
