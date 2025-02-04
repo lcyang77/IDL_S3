@@ -25,7 +25,7 @@ net_status_t net_sta_get_status(void);
 // 更新联网状态并发送通知
 esp_err_t net_sta_update_status(net_status_t status);
 
-// 启动联网状态监控（定时判定）
+// 启动联网状态监控（定时判定），仅在收到配网指令后调用
 void net_sta_start_monitor(void);
 
 #endif // NET_STA_H

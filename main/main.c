@@ -153,7 +153,9 @@ static void do_wifi_connect_or_config(void)
     if (have_config) {
         ESP_LOGI(TAG, "[do_wifi_connect_or_config] Detected existing Wi-Fi config => connect now");
         gs_wifi_sta_start_connect();
+        // 初始状态设置为 正在连接路由器（0x02）
         net_sta_update_status(NET_STATUS_CONNECTING_ROUTER);
+        // 注意：当 Wi-Fi 连接成功后，应在 Wi-Fi 事件回调中调用 net_sta_update_status(NET_STATUS_CONNECTED_ROUTER)
     } else {
         ESP_LOGI(TAG, "[do_wifi_connect_or_config] No Wi-Fi config => start AP+BLE provisioning");
         gs_bind_start_cfg_mode(GS_BIND_CFG_MODE_AP | GS_BIND_CFG_MODE_BLE);
@@ -170,10 +172,14 @@ static void uart_packet_received(const uart_packet_t *packet)
 
     switch (packet->command) {
 
-    // 0x01: WiFi 配网
+    // 0x01: WiFi 配网指令
     case CMD_WIFI_CONFIG: {
         ESP_LOGI(TAG, "Got CMD_WIFI_CONFIG (0x01) => do_wifi_connect_or_config...");
         do_wifi_connect_or_config();
+        // 启动联网状态监控定时器，只有在收到配网指令后才启动监控
+#if FIRMWARE_VERSION_MAJOR >= 9
+        net_sta_start_monitor();
+#endif
         vTaskDelay(pdMS_TO_TICKS(1000));
         ESP_LOGI(TAG, "WiFi connect/config done? -> send CMD_WIFI_RESPONSE (0x02) ack => success=WIFI_CONFIG_SUCCESS (0x00)");
         esp_err_t ret = uart_comm_send_wifi_response(WIFI_CONFIG_SUCCESS);
@@ -265,14 +271,14 @@ void app_main(void)
     // 4. 启动网络循环任务
     xTaskCreate(network_task, "Network Task", 4096, NULL, 5, NULL);
 
-    // 5. 初始化 net_sta 模块
+    // 5. 初始化 net_sta 模块（仅当固件版本 >= 9 时启用联网状态管理）
     if (FIRMWARE_VERSION_MAJOR >= 9) {
         ret = net_sta_init();
         if (ret != ESP_OK) {
             ESP_LOGE(TAG, "net_sta_init failed");
         } else {
             ESP_LOGI(TAG, "net_sta_init succeeded");
-            net_sta_start_monitor();
+            // 注意：联网状态监控定时器仅在收到配网指令后启动，不在此处自动启动
         }
     } else {
         ESP_LOGW(TAG, "Firmware version < 9, net_sta module disabled");

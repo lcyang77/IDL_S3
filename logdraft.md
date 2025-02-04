@@ -1240,3 +1240,132 @@ esp_err_t uart_comm_register_callback(uart_packet_callback_t callback)
 
 
 
+[2025-02-05 00:51:27.628]
+TX：AA550116090001000020
+[2025-02-05 00:51:37.891]
+RX：[0;32mI (66737) uart_comm: Raw data: AA 55 01 16 09 00 01 00 00 20 [0m
+[0;32mI (66738) uart_comm: Received valid packet[0m
+[0;32mI (66738) uart_comm: ====== Received Packet Details ======[0m
+[0;32mI (66812) uart_comm: Header: 0xAA 0x55[0m
+[0;32mI (66865) uart_comm: Command: 0x01[0m
+[0;32mI (66914) uart_comm: Data: 16 09 00 01 00 00[0m
+[0;32mI (66974) uart_comm: Checksum: 0x20[0m
+[0;32mI (67024) uart_comm: ==============================[0m
+[0;32mI (67090) uart_comm: uart_packet_received_internal: CMD=0x01[0m
+[0;32mI (67166) uart_comm: Got CMD_WIFI_CONFIG (0x01)[0m
+[0;32mI (67229) app_main: uart_packet_received: CMD=0x01[0m
+[0;32mI (67294) app_main: Got CMD_WIFI_CONFIG (0x01) => do_wifi_connect_or_config...[0m
+[0;32mI (67389) app_main: [do_wifi_connect_or_config] Detected existing Wi-Fi config => connect now[0m
+[0;32mI (67500) cc_hal_wifi: Connecting to Wi-Fi:ASUS Wi-Fi7, PSW:y2756096[0m
+[0;32mI (67585) phy_init: phy_version 680,a6008b2,Jun  4 2024,16:41:10[0m
+I (67700) wifi:mode : sta (dc:da:0c:1e:2e:78)
+I (67713) wifi:enable tsf
+[0;32mI (67743) gs_wifi: gs_wifi_sta_start_connect ssid: ASUS Wi-Fi7, password: y2756096[0m
+I (67756) wifi:[0;32mI (67840) net_sta: Network status updated to: 0x02[0m
+new:<1,0>, old:<1,0>, ap:<255,255>, sta:<1,0>, prof:1, snd_ch_cfg:0x0
+[0;32mI (67921) uart_comm: ====== Sending Packet Details ======[0m
+I (67996) wifi:state: init -> auth (0xb0)[0;32mI (68068) uart_comm: Header: 0xAA 0x55[0m
+
+[0;32mI (67841) gs_mqtt: __event_handler: GS_WIFI_EVENT event: 0[0m
+[0;32mI (68164) uart_comm: Command: 0x23[0m
+[0;32mI (68426) uart_comm: Data: 02 00 00 00 00 00[0m
+[0;32mI (68443) uart_comm: Checksum: 0x24[0m
+[0;32mI (68493) uart_comm: ==============================[0m
+[0;32mI (68560) uart_comm: Successfully sent 10 bytes[0m
+[0;32mI (68622) net_sta: Sent network status notification.[0m
+[0;32mI (68690) net_sta: timer_5s started[0m
+I (68715) wifi:[0;32mI (68740) net_sta: timer_12s started[0m
+state: auth -> assoc (0x0)
+I (68855) wifi:state: assoc -> run (0x10)
+I (68903) wifi:connected with ASUS Wi-Fi7, aid = 23, channel 1, BW20, bssid = c2:7c:61:cb:d6:49
+I (68982) wifi:security: WPA3_SAE_EXT, phy: bgn, rssi: -63
+I (69046) wifi:pm start, type: 1
+
+I (69082) wifi:dp: 1, bi: 102400, li: 3, scale listen interval from 307200 us to 307200 us
+I (69178) wifi:set rx beacon pti, rx_bcn_pti: 14, bcn_timeout: 25000, mt_pti: 14, mt_time: 10000
+I (69280) wifi:AP's beacon interval = 102400 us, DTIM period = 1
+[0;32mI (69351) gs_wifi: wifi connect[0m
+I (69368) wifi:<ba-add>idx:0 (ifx:0, c2:7c:61:cb:d6:49), tid:7, ssn:3, winSize:64
+[0;32mI (69481) gs_mqtt: __event_handler: GS_WIFI_EVENT event: 1[0m
+猆#$[0;32mI (69807) app_main: WiFi connect/config done? -> send CMD_WIFI_RESPONSE (0x02) ack => success=WIFI_CONFIG_SUCCESS (0x00)[0m
+[0;32mI (69812) uart_comm: Sending WiFi configuration response, status=0x00[0m
+[0;32mI (69897) uart_comm: ====== Sending Packet Details ======[0m
+[0;32mI (69970) uart_comm: Header: 0xAA 0x55[0m
+[0;32mI (70023) uart_comm: Command: 0x02[0m
+[0;32mI (70072) uart_comm: Data: 00 00 00 00 00 00[0m
+[0;32mI (70131) uart_comm: Checksum: 0x01[0m
+[0;32mI (70181) uart_comm: ==============================[0m
+[0;32mI (70248) uart_comm: Successfully sent 10 bytes[0m
+[0;32mI (70351) esp_netif_handlers: sta ip: 192.168.50.48, mask: 255.255.255.0, gw: 192.168.50.1[0m
+[0;32mI (70418) cc_hal_wifi: Got IP: 192.168.50.48[0m
+[0;32mI (70477) gs_wifi: wifi got ip: 192.168.50.48[0m
+[0;32mI (70538) gs_mqtt: __event_handler: GS_WIFI_EVENT event: 3[0m
+[0;32mI (70612) hal_network: Event dispatched from event loop base=MQTT_EVENTS, event_id=7[0m
+[0;32mI (70713) hal_network: Other event id:7[0m
+I (70789) wifi:<ba-add>idx:1 (ifx:0, c2:7c:61:cb:d6:49), tid:0, ssn:1, winSize:64
+猆[0;32mI (70987) hal_network: Event dispatched from event loop base=MQTT_EVENTS, event_id=1[0m
+[0;32mI (70987) gs_mqtt: __event_handler: GS_MQTT_EVENT event: 0[0m
+[0;32mI (71039) gs_mqtt: gs_mqtt_publish topic: /event/property/post data: {"ver":"1.21.0.0","act":"0002","seq_no":"33290826691135830692772803924917"}[0m
+[0;32mI (71205) app_main: Version message sent successfully[0m
+[0;32mI (71272) gs_mqtt: gs_mqtt_publish topic: /event/property/post data: {"ver":"1.21.0.0","act":"0003","type":"02","data":"-64","seq_no":"04504024310661975104459076344090"}[0m
+[0;32mI (71462) app_main: RSSI message sent successfully[0m
+[0;32mI (71526) app_main: MQTT birth messages all sent => create mqtt_done_task...[0m
+[0;32mI (71619) app_main: MQTT birth messages done. Starting time update...[0m
+[0;32mI (71619) product: __event_handler: GS_MQTT_EVENT event: 0[0m
+[0;32mI (71704) get_time: do_http_request: attempt=1/3[0m
+[0;32mI (71849) hal_network: Event dispatched from event loop base=MQTT_EVENTS, event_id=3[0m
+[0;32mI (71943) hal_network: Other event id:3[0m
+[0;32mI (72016) get_time: HTTP_EVENT_ON_DATA, len=35[0m
+[0;32mI (72059) get_time: HTTP_EVENT_ON_FINISH => total=35 bytes[0m
+[0;32mI (72133) get_time: Updated time => utc=1738687893, timezone=80[0m
+[0;32mI (72213) app_main: Time update succeeded, valid UTC/timezone now.[0m
+[0;32mI (72294) net_sta: Network status updated to: 0x04[0m
+[0;32mI (72360) net_sta: timer_5s stopped due to status update to 0x04[0m
+[0;32mI (72440) net_sta: timer_5s deleted[0m
+[0;32mI (72490) net_sta: timer_12s stopped due to status update to 0x04[0m
+[0;32mI (72571) net_sta: timer_12s deleted[0m
+[0;32mI (72622) uart_comm: ====== Sending Packet Details ======[0m
+[0;32mI (72695) uart_comm: Header: 0xAA 0x55[0m
+[0;32mI (72748) uart_comm: Command: 0x23[0m
+[0;32mI (72797) uart_comm: Data: 04 95 45 A2 67 50[0m
+[0;32mI (72856) uart_comm: Checksum: 0x59[0m
+[0;32mI (72906) uart_comm: ==============================[0m
+[0;32mI (72973) uart_comm: Successfully sent 10 bytes[0m
+[0;32mI (73036) net_sta: Sent network status notification.[0m
+[0;32mI (73103) USB_STREAM: UVC Streaming Config Succeed, Version: 1.5.0[0m
+[0;32mI (73186) USB_STREAM: USB streaming callback register succeed[0m
+[0;32mI (73263) USB_STREAM: Pre-alloc ctrl urb succeed, size = 1024[0m
+[0;32mI (73340) USB_STREAM: USB stream task start[0m
+[0;32mI (73370) USB_STREAM: USB Streaming Start Succeed[0m
+[0;32mI (73463) USB_STREAM: Waiting USB Device Connection[0m
+[0;32mI (73620) USB_STREAM: line 151 HCD_PORT_EVENT_CONNECTION[0m
+[0;32mI (73620) USB_STREAM: Action: ACTION_DEVICE_CONNECT[0m
+[0;32mI (73718) USB_STREAM: Resetting Port[0m
+[0;32mI (73779) USB_STREAM: Setting Port FIFO, 1[0m
+[0;32mI (73780) USB_STREAM: USB Speed: full-speed[0m
+[0;32mI (73835) USB_STREAM: ENUM Stage START, Succeed[0m
+[0;32mI (73898) USB_STREAM: ENUM Stage GET_SHORT_DEV_DESC, Succeed[0m
+[0;32mI (73974) USB_STREAM: Default pipe endpoint MPS update to 64[0m
+[0;32mI (74049) USB_STREAM: ENUM Stage CHECK_SHORT_DEV_DESC, Succeed[0m
+[0;32mI (74128) USB_STREAM: ENUM Stage SET_ADDR, Succeed[0m
+[0;32mI (74204) USB_STREAM: ENUM Stage CHECK_ADDR, Succeed[0m
+[0;32mI (74262) USB_STREAM: ENUM Stage GET_FULL_DEV_DESC, Succeed[0m
+[0;32mI (74337) USB_STREAM: ENUM Stage CHECK_FULL_DEV_DESC, Succeed[0m
+[0;32mI (74414) USB_STREAM: ENUM Stage GET_SHORT_CONFIG_DESC, Succeed[0m
+[0;32mI (74493) USB_STREAM: ENUM Stage CHECK_SHORT_CONFIG_DESC, Succeed[0m
+[0;32mI (74574) USB_STREAM: ENUM Stage GET_FULL_CONFIG_DESC, Succeed[0m
+[0;33mW (74652) USB_STREAM: 鎻忚堪绗︿笉鍖归厤锛氬０鏄庣殑甯ф弿杩扮鏁伴噺 = 8锛屽疄闄呮彁渚涚殑甯ф弿杩扮鏁伴噺 = 8[0m
+[0;32mI (74784) USB_STREAM: Actual VS Interface(MPS <= 512) found, interface = 1, alt = 0[0m
+[0;32mI (74883) USB_STREAM: 	Endpoint(BULK) Addr = 0x81, MPS = 64[0m
+[0;32mI (74958) USB_STREAM: Actual MJPEG format index, format index = 1, contains 7 frames[0m
+[0;32mI (75060) USB_STREAM: Actual Frame: 7, width*height: 1280*720, frame index = 6[0m
+[0;32mI (75154) USB_STREAM: ENUM Stage CHECK_FULL_CONFIG_DESC, Succeed[0m
+[0;32mI (75236) USB_STREAM: ENUM Stage SET_CONFIG, Succeed[0m
+[0;32mI (75303) uvc_camera_module: UVC Device connected[0m
+[0;32mI (75367) USB_STREAM: Probe Format(1), Frame(6) 1280*720, interval(666666)[0m
+[0;32mI (75457) USB_STREAM: Probe payload size = 2048[0m
+[0;32mI (75523) USB_STREAM: dwMaxPayloadTransferSize set = 2048, probed = 768000[0m
+[0;32mI (75611) USB_STREAM: Sample processing task start[0m
+[0;32mI (75631) USB_STREAM: USB Device Connected[0m
+[0;32mI (75733) uvc_camera_module: UVC camera initialized and streaming started.[0m
+猆#旹PY
