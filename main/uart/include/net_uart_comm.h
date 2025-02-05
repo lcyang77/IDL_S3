@@ -18,7 +18,7 @@ typedef enum {
     CMD_GET_DEVICE_INFO_RSP   = 0x07, // WiFi->MCU 设备信息应答
     CMD_CLEAR_DATA            = 0x05, // 清除数据，恢复出厂设置
     CMD_IMG_TRANSFER          = 0x1C, // 图传开启/关闭指令（MCU->WiFi）
-    // 状态上传相关命令（由 state_report 模块处理）
+    // 状态上传相关命令
     CMD_STATE_REPORT          = 0x42, // 主板上报状态
     CMD_STATE_REPORT_ACK      = 0x43, // WiFi 模块对状态上报的应答
 } uart_command_t;
@@ -85,5 +85,8 @@ esp_err_t uart_comm_send_device_info(const char *device_id, const uint8_t *mac);
 
 // 发送清除数据响应
 esp_err_t uart_comm_send_clear_data_response(bool success);
+
+// 新增：用于断电通知的应答函数
+esp_err_t uart_comm_send_power_off_ack(bool success);
 
 #endif // NET_UART_COMM_H

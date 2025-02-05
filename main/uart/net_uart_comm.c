@@ -1,3 +1,6 @@
+/************************************************
+ * File: net_uart_comm.c
+ ************************************************/
 #include "net_uart_comm.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -186,7 +189,7 @@ esp_err_t uart_comm_send_clear_data_response(bool success)
     uart_packet_t packet = {0};
     packet.header[0] = 0xAA;
     packet.header[1] = 0x55;
-    packet.command = CMD_WIFI_RESPONSE; // 使用 WiFi 响应命令
+    packet.command = CMD_WIFI_RESPONSE;
     packet.data[0] = success ? 0x00 : 0x02;
     for (int i = 1; i < 6; i++) {
         packet.data[i] = 0x00;
@@ -324,7 +327,6 @@ static void uart_packet_received_internal(const uart_packet_t *packet)
             s_packet_callback(packet);
         }
         break;
-    // 新增：状态上报相关分支
     case CMD_STATE_REPORT:
         ESP_LOGI(TAG, "Got CMD_STATE_REPORT (0x42) => forward to state_report module");
         if (s_packet_callback) {
@@ -333,9 +335,19 @@ static void uart_packet_received_internal(const uart_packet_t *packet)
         break;
     case CMD_STATE_REPORT_ACK:
         ESP_LOGI(TAG, "Received CMD_STATE_REPORT_ACK (0x43)");
-        /* 当收到状态上报应答时，调用 state_report 模块的ACK处理函数，
-           以移除待重传的消息 */
         state_report_ack_handler();
+        break;
+    case 0x03:
+        ESP_LOGI(TAG, "Got CMD=0x03, forwarding to callback");
+        if (s_packet_callback) {
+            s_packet_callback(packet);
+        }
+        break;
+    case 0x12:
+        ESP_LOGI(TAG, "Got CMD=0x12, forwarding to callback");
+        if (s_packet_callback) {
+            s_packet_callback(packet);
+        }
         break;
     default:
         ESP_LOGW(TAG, "Unknown cmd=0x%02X", packet->command);
@@ -473,4 +485,26 @@ esp_err_t uart_comm_register_callback(uart_packet_callback_t callback)
 {
     s_packet_callback = callback;
     return ESP_OK;
+}
+
+/* ----------------- 新增：用于断电通知的应答函数 ----------------- */
+esp_err_t uart_comm_send_power_off_ack(bool success)
+{
+    uart_packet_t pkt;
+    memset(&pkt, 0, sizeof(pkt));
+
+    pkt.header[0] = 0xAA;
+    pkt.header[1] = 0x55;
+    pkt.command   = CMD_WIFI_RESPONSE;  // 0x02
+
+    pkt.data[0] = success ? 0x00 : 0x02;   // 执行结果
+    pkt.data[1] = 0x04;                    // 协议版本字段，按断电通知协议要求设置为 0x04
+    pkt.data[2] = 0x00;
+    pkt.data[3] = 0x00;
+    pkt.data[4] = 0x00;
+    pkt.data[5] = 0x00;
+    pkt.checksum = uart_comm_calc_checksum((uint8_t*)&pkt, sizeof(pkt) - 1);
+
+    ESP_LOGI(TAG, "Sending Power Off ACK: success=%d", success);
+    return uart_comm_send_packet(&pkt);
 }

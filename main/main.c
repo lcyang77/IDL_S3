@@ -176,7 +176,6 @@ static void uart_packet_received(const uart_packet_t *packet)
     case CMD_WIFI_CONFIG: {
         ESP_LOGI(TAG, "Got CMD_WIFI_CONFIG (0x01) => do_wifi_connect_or_config...");
         do_wifi_connect_or_config();
-        // 启动联网状态监控定时器，只有在收到配网指令后才启动监控
 #if FIRMWARE_VERSION_MAJOR >= 9
         net_sta_start_monitor();
 #endif
@@ -278,7 +277,6 @@ void app_main(void)
             ESP_LOGE(TAG, "net_sta_init failed");
         } else {
             ESP_LOGI(TAG, "net_sta_init succeeded");
-            // 注意：联网状态监控定时器仅在收到配网指令后启动，不在此处自动启动
         }
     } else {
         ESP_LOGW(TAG, "Firmware version < 9, net_sta module disabled");
