@@ -12,8 +12,8 @@ extern "C" {
 CC_EVENT_DECLARE_BASE(GS_DEVICE_EVENT);
 
 
-#define CONFIG_GAOSI_LICENSE_UNAME  "gsbiaozhunz"
-#define CONFIG_GAOSI_LICENSE_UKEY   "fe54ef97c037d07a76d21b5b8c895564"
+#define CONFIG_GAOSI_LICENSE_UNAME  "xxxxxx"
+#define CONFIG_GAOSI_LICENSE_UKEY   "xxxxxxxxxxxxxxxxx"
 
 typedef enum{
     GS_DEVICE_EVENT_GET_LICENSE_SUCCESS = 0,
