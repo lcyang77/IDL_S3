@@ -129,8 +129,8 @@ static void __get_license_task(uint32_t interval, void *arg){
         }
         sign[40] = '\0';
 
-        sprintf(url_buf, "http://gaoshi.wdaoyun.cn/app/api/?c=license&a=getLicenseInfo&uname=%s&time=%ld&sign=%s", uname, timestamp, sign);
-        // sprintf(url_buf, "http://192.168.5.219:8080/app/api/?c=license&a=getLicenseInfo&uname=%s&time=%d&sign=%s", uname, timestamp, sign);
+        sprintf(url_buf, "http://xxx.xxx.xx/app/api/?c=license&a=getLicenseInfo&uname=%s&time=%ld&sign=%s", uname, timestamp, sign);
+        // sprintf(url_buf, "http://192.168.x.xxx:8080/app/api/?c=license&a=getLicenseInfo&uname=%s&time=%d&sign=%s", uname, timestamp, sign);
         CC_LOGD(TAG, "get license: %s", url_buf);
         cc_http_simple_get(url_buf, __get_license_http_cb, NULL);
     }else{
@@ -178,7 +178,7 @@ void __get_time_task(uint32_t interval, void *arg){
     char url_buf[128] = "";
 
     CC_LOGI(TAG, "start get time");
-    sprintf(url_buf, "http://gaoshi.wdaoyun.cn/mqtt/getTime.php?device_name=%s", g_dev_triple.device_name);
+    sprintf(url_buf, "http://xxx.xxx.xx/mqtt/getTime.php?device_name=%s", g_dev_triple.device_name);
     CC_LOGI(TAG, "__get_time_task: Sending request to URL: %s", url_buf);
     cc_http_simple_get(url_buf, __get_time_http_cb, NULL);
     CC_LOGI(TAG, "__get_time_task: HTTP request sent, task deleting itself");
